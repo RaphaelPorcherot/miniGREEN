@@ -194,6 +194,12 @@ deleted — the policies may come back.
 **All paths go through `src/paths.r`.** Never write a literal path in a module.
 The previous layout (`notebooks/r-nb/...`) is gone.
 
+**`TODO(2026)` marks a line that faithfully translates the 2025 model and will
+change when its module is retranslated against `vensim_model_2026.txt`.** The
+modules are 2025 translations throughout; migrating one line at a time would
+make them internally inconsistent, so the differences are marked rather than
+applied. `grep -rn "TODO(2026)" src/` lists them.
+
 **Files and directories are `kebab-case`** (`A-prep-steps/`, `0-log-config.r`,
 `long-comments.qmd`). The `camelCase` rule of §5 applies to R objects — variables
 and functions — not to file names.

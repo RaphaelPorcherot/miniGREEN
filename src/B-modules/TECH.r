@@ -27,13 +27,17 @@ POL_scalingLabourProductivity <- function() {
 
 computeAlternativeChangeLabourProductivity <- function() {
   eq({
-    # Per industry, all of them. `mean` used to be wrapped in max(0, .), which
-    # is the scalar max — it replaced every industry's mean by the largest one,
-    # and added a floor at zero that Vensim does not have. Vensim reads
-    # `mean delta lambda i[ind]` straight. An alternative technology that lowers
-    # productivity is a legitimate draw: it simply will not be the one chosen.
-    # See inconsistencies_new.md.
-    mean <- gp("R_gLabProdMean_i")
+    # Per industry, all of them. This used to read max(0, mean) — R's max() is a
+    # reduction, so it replaced all nineteen industry means by the largest one.
+    # Vensim's max() is elementwise here; pmax() is its R equivalent, and the
+    # vector goes first or the names are lost.
+    #
+    # TODO(2026): the 2025 model floors the mean at zero, the 2026 model does
+    # not. This line still follows 2025, like the rest of the module. Drop the
+    # pmax() when TECH is retranslated against vensim_model_2026.txt — an
+    # alternative technology that lowers productivity is a legitimate draw, it
+    # simply will not be the one selected. See inconsistencies_new.md.
+    mean <- pmax(gp("R_gLabProdMean_i"), 0)
     sd <- gp("R_gLabProdSd_i")
     min <- gp("R_gLabProdMin_i")
     max <- gp("R_gLabProdMax_i")

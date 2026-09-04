@@ -169,34 +169,45 @@ the two languages. `pmax` is R's elementwise `max`.
 
 ### Decision
 
-Both the collapse and the floor were removed. The line now reads what Vensim
-reads:
+The collapse is fixed. The floor is kept and marked, because the module is a
+translation of 2025 and this is where 2025 and 2026 differ:
 
 ```r
-mean <- gp("R_gLabProdMean_i")     # per industry, all of them
+# TODO(2026): the 2025 model floors the mean at zero, the 2026 model does not.
+mean <- pmax(gp("R_gLabProdMean_i"), 0)     # per industry, all of them
 rtruncnorm(n = 1, a = min + sd, b = max + sd, mean = mean + sd, sd = sd)
 ```
+
+The `TODO(2026)` marker is the convention for a line that is a faithful 2025
+translation and will change when the module is retranslated. `grep -rn
+"TODO(2026)" src/` finds them all.
 
 * **The collapse was a translation bug.** Vensim's `max()` is elementwise here;
   R's is a reduction. `pmax` is the R equivalent. Both the R suffix `_i` and the
   Vensim `[ind]` say per-industry, and no reading makes one industry's mean
   drive the other eighteen.
-* **The floor went too — because the 2026 model dropped it.** It is in the 2025
-  source and was translated correctly in intent, so this is not a correction of
-  a mistake but an alignment on the model we are now translating. And the
-  economics agree: an alternative technology that *lowers* productivity is a
-  legitimate draw — it simply will not be the one selected. Flooring it at zero
-  does not prevent a bad alternative from being modelled, it prevents it from
-  being recognised as bad.
+* **The floor stays, for now.** It is in the 2025 source and was translated
+  correctly in intent, so it is not a mistake — the 2026 model simply dropped
+  it. The module is still a translation of 2025 throughout, and half-migrating
+  one line to 2026 would make it internally inconsistent. It is therefore kept
+  as `pmax(gp("R_gLabProdMean_i"), 0)` and marked `TODO(2026)` in the code, to
+  be dropped when TECH is retranslated.
+
+  The economics point the same way: an alternative technology that *lowers*
+  productivity is a legitimate draw — it simply will not be the one selected.
+  Flooring it at zero does not prevent a bad alternative from being modelled,
+  it prevents it from being recognised as bad.
 
 ### Measured effect
 
-| | before | after |
-|---|---|---|
-| correlation between the drawn growth and each industry's own mean | 0.199 | **0.791** |
-| economy-wide mean of the draw | 0.0493 | 0.0215 |
-| `ict` (own mean -0.0173) | +0.0437 | +0.0059 |
-| `education` (own mean 0.0039) | +0.0487 | +0.0001 |
+| | `max()`, as found | `pmax()`, kept | `pmax()` dropped (2026) |
+|---|---|---|---|
+| correlation between the drawn growth and each industry's own mean | 0.199 | **0.749** | 0.791 |
+| economy-wide mean of the draw | 0.0493 | 0.0227 | 0.0215 |
+
+Almost all of the gain comes from fixing the collapse, not from the floor: only
+four industries have a negative mean, so flooring changes little. Which is why
+keeping the floor until the 2026 retranslation costs nothing.
 
 The correlation is the telling one: before the fix, the draw barely tracked the
 parameter that is supposed to drive it.
