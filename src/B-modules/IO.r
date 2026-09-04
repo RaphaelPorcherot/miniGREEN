@@ -59,7 +59,10 @@ interIndustryCoeff <- function(){
       #}else if(T_i[ind] = UFC_Tiv[ind, T3]){
       #R_a_ii <- a_delay_ii[ind, toind] * (1 + delta_a_T4_ii[ind, toind])
       #
-      R_a_ii <- max(0, R_a_ii)
+      # pmax, elementwise, and the array first: max() would reduce the 19x19
+      # matrix to its largest coefficient, and pmax(0, x) drops the dim
+      # attribute. See inconsistencies_new.md.
+      R_a_ii <- pmax(R_a_ii, 0)
     }
     #R_a_ii <- R_a_ii * (1+ delta damage multiplier i[ind]
     R_a_ii

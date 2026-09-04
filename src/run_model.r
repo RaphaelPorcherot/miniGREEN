@@ -319,17 +319,18 @@ phaseOut_carbon <- 0 # phase out carbon ?
 phaseOut_gas <- 0#phase out gas ?
 phaseOut_oil <- 0 #phase out oil ?
 phaseOut_bio <- 0 #phase out biomass ?
-productPhaseOut_i <- template_energy_n
-productPhaseOut_i[] <- c(phaseOut_carbon, phaseOut_gas, phaseOut_oil, phaseOut_bio, 0)
-loadFillPol("productPhaseOut_i", productPhaseOut_i, "1 - to be phased out ; 0 - not to be phased out. Energy sources to be phased out (renewables are never phased out = always 0")
+productPhaseOut_n <- template_energy_n
+productPhaseOut_n[] <- c(phaseOut_carbon, phaseOut_gas, phaseOut_oil, phaseOut_bio, 0)
+loadFillPol("productPhaseOut_n", productPhaseOut_n, "1 - to be phased out ; 0 - not to be phased out. Energy sources to be phased out (renewables are never phased out = always 0")
 loadFillPol("lengthPhaseOut_carbon", 20, "number of years for carbon to be phased out")
 loadFillPol("lengthPhaseOut_gas", 50, "number of years for gas to be phased out")
 loadFillPol("lengthPhaseOut_oil", 30, "number of years for oil to be phased out")
 loadFillPol("lengthPhaseOut_bio", 50, "number of years for biomass to be phased out")
     # the period the respective energy product is phased outer
-lengthPhaseOut_i <- template_energy_n
-lengthPhaseOut_i[] <- c(gp("lengthPhaseOut_carbon"), gp("lengthPhaseOut_gas"), gp("lengthPhaseOut_oil"), gp("lengthPhaseOut_bio"), 0)
-loadFillPol("lengthPhaseOut_i", 50, "energy sources and their number of phasing out years")    
+lengthPhaseOut_n <- template_energy_n
+lengthPhaseOut_n[] <- c(gp("lengthPhaseOut_carbon"), gp("lengthPhaseOut_gas"), gp("lengthPhaseOut_oil"), gp("lengthPhaseOut_bio"), 0)
+# was: loadFillPol("lengthPhaseOut_i", 50, ...) — the scalar, not the vector built above
+loadFillPol("lengthPhaseOut_n", lengthPhaseOut_n, "energy sources and their number of phasing out years")    
 # Act carbon tax 
 loadFillPol("Act_carbonTax", 0, "introducing a carbon tax")
 loadFillPol("initial_carbonTaxRate", 50, "intial level of the carbon tax ~ADJUST by the current EU ETS price~~ - 50 is close to the current EU ETS price")

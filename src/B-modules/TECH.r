@@ -27,28 +27,36 @@ POL_scalingLabourProductivity <- function() {
 
 computeAlternativeChangeLabourProductivity <- function() {
   eq({
+    # Per industry, all of them. `mean` used to be wrapped in max(0, .), which
+    # is the scalar max — it replaced every industry's mean by the largest one,
+    # and added a floor at zero that Vensim does not have. Vensim reads
+    # `mean delta lambda i[ind]` straight. An alternative technology that lowers
+    # productivity is a legitimate draw: it simply will not be the one chosen.
+    # See inconsistencies_new.md.
     mean <- gp("R_gLabProdMean_i")
     sd <- gp("R_gLabProdSd_i")
     min <- gp("R_gLabProdMin_i")
     max <- gp("R_gLabProdMax_i")
 
     R_gLabProdAlt_iv <- template_industry_iv
-    R_gLabProdAlt_iv[, 1] <- 0 # lambda diffusion * (1 + 0)
+    # T1 is the incumbent technology: no change beyond diffusion, hence
+    # lambda diffusion * (1 + 0)
+    R_gLabProdAlt_iv[, "T1"] <- 0
     # delta lambda T2 i : change in labour productivity for T2
-    R_gLabProdAlt_iv[, 2] <- R_scalingLabProd *
+    R_gLabProdAlt_iv[, "T2"] <- R_scalingLabProd *
       rtruncnorm(
         n = 1,
         a = min + sd,
         b = max + sd,
-        mean = max(0, mean) + sd,
+        mean = mean + sd,
         sd = sd
       )
     # delta lambda T3 i : change in labour productivity for T3
-    R_gLabProdAlt_iv[, 3] <- R_scalingLabProd *
-      rtruncnorm(1, min - sd, max - sd, max(0, mean) - sd, sd)
+    R_gLabProdAlt_iv[, "T3"] <- R_scalingLabProd *
+      rtruncnorm(1, min - sd, max - sd, mean - sd, sd)
     # delta lambda T4 i : change in labour productivity for T4
-    R_gLabProdAlt_iv[, 4] <- R_scalingLabProd *
-      rtruncnorm(1, min + sd, max + sd, max(0, mean) + sd, sd)
+    R_gLabProdAlt_iv[, "T4"] <- R_scalingLabProd *
+      rtruncnorm(1, min + sd, max + sd, mean + sd, sd)
     R_gLabProdAlt_iv
   })
 }
@@ -57,8 +65,10 @@ computeAlternativeLabourProductivity <- function() {
   eq({
     # lambda T iv
     baseLabProd <- template_industry_iv
-    baseLabProd[, 1] <- R_labProdDiffusion_i
-    baseLabProd[, 2:ncol(baseLabProd)] <- R_labProd_i_lag
+    # only the incumbent technology carries the diffusion term; the alternatives
+    # start from last period's productivity
+    baseLabProd[, "T1"] <- R_labProdDiffusion_i
+    baseLabProd[, setdiff(technology, "T1")] <- R_labProd_i_lag
     R_labProdAlt_iv <- baseLabProd * (1 + R_gLabProdAlt_iv)
     R_labProdAlt_iv
   })

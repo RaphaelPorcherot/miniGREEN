@@ -5,11 +5,11 @@
 POL_PhaseOutReductionEnShare <- function() {
   eq({
     start <- gp("startPolicy")
-    length_i <- gp("lengthPhaseOut_i")
-    product_i <- gp("productPhaseOut_i")
+    length_n <- gp("lengthPhaseOut_n")
+    product_n <- gp("productPhaseOut_n")
     # end and start year as vector
-    endYear_i <- (length_i + start) 
-    startYear_i <- (template_energy_n + start) 
+    endYear_n <- (length_n + start) 
+    startYear_n <- (template_energy_n + start) 
 
     # Store the energy share matrix at the time of policy start
     if(t == start && gp("Act_phaseOut") == 1){
@@ -22,12 +22,12 @@ POL_PhaseOutReductionEnShare <- function() {
 
     if (!is.null(SH_enSrc_atPolStart_in) && !all(is.na(SH_enSrc_atPolStart_in))) {
       # annual reduction given starting share and length of phasing
-      annualReduc_in <- sweep(SH_enSrc_atPolStart_in, 2, length_i, "/")
+      annualReduc_in <- sweep(SH_enSrc_atPolStart_in, "EnergySource", length_n, "/")
       annualReduc_in[!is.finite(annualReduc_in)] <- 0        
       # Check which energy is being phased out :  with selection of product to phase out (renew is never phased out = always 0 in produtPhaseOut_i)
-      phaseOut_InProgress_i <- (t >= startYear_i & t < endYear_i) & gp("Act_phaseOut") == 1 & product_i == 1
+      phaseOut_InProgress_n <- (t >= startYear_n & t < endYear_n) & gp("Act_phaseOut") == 1 & product_n == 1
       # Compute reduction in energy share from policy
-      R_gEnShare_fromPolicy_in[] <- - sweep(annualReduc_in, 2, phaseOut_InProgress_i, "*") # the minus sign becasue its a reduction !
+      R_gEnShare_fromPolicy_in[] <- - sweep(annualReduc_in, "EnergySource", phaseOut_InProgress_n, "*") # the minus sign becasue its a reduction !
     }
     R_gEnShare_fromPolicy_in
   })
@@ -61,7 +61,7 @@ POL_Shift_EnSourceShare_in_InterProdEnDemand <- function(){
   eq({# Share source Ed Z nrg i[nrg,ind]= INTEG (in share sources)
     start <- gp("startPolicy")
     end <- gp("endPolicy")
-    product_i <- gp("productPhaseOut_i")
+    product_n <- gp("productPhaseOut_n")
 
     # RESCALE : Ensure the shares sum up exactly to 1 by industry = no free (energy) lunch
     SH_enSources_in_lvl <- SH_enSrc_enDemZ_in_lvl/rowSums(SH_enSrc_enDemZ_in_lvl)
@@ -89,7 +89,7 @@ POL_Shift_EnSourceShare_in_InterProdEnDemand <- function(){
         factor_in <- factor_in + R_gEnShare_fromPolicy_in 
 
         # the increase
-        idx_phasedOut <- which(product_i == 1)
+        idx_phasedOut <- which(product_n == 1)
         # Compute the shares of current energy mix leaving out phasing out energies 
         # These will be the weight of redistribution
         SH_currEnSources_in <- SH_enSources_in_lvl * (1 + R_gEnShare_fromRenew_in)

@@ -66,7 +66,7 @@ POL_shift_hourlyWage <- function(){# That must be real hourly wages. Yet if this
         for (s in pop_group) {
 
           # Zero column for fake skills
-          if (s %in% c("child", "cap")) {
+          if (s %in% non_skill) {
             intensityChangeMean[, s, g] <- 0
             next
           }
@@ -75,7 +75,7 @@ POL_shift_hourlyWage <- function(){# That must be real hourly wages. Yet if this
             gap_value <- gap_minToMeanWage_isg[i, s, g]
             # Skip si NA, NaN, ou Inf
             if (is.na(gap_value) || is.infinite(gap_value)) {
-              intensityChangeMean[industry, pop_group, gender] <- 0
+              intensityChangeMean[i, s, g] <- 0
               next
             }
 
@@ -109,7 +109,7 @@ POL_shift_hourlyWage <- function(){# That must be real hourly wages. Yet if this
         for (s in pop_group) {
 
           # Zero column for fake skills
-          if (s %in% c("child", "cap")) {
+          if (s %in% non_skill) {
             intensityChangeMean[, s, g] <- 0
             next
           }
@@ -118,7 +118,7 @@ POL_shift_hourlyWage <- function(){# That must be real hourly wages. Yet if this
             gap_value <- gap_maxToMeanWage_isg[i, s, g]
             # Skip si NA, NaN, ou Inf
             if (is.na(gap_value) || is.infinite(gap_value)) {
-              intensityChangeMean[industry, pop_group, gender] <- 0
+              intensityChangeMean[i, s, g] <- 0
               next
             }
 
@@ -154,10 +154,10 @@ POL_shift_hourlyWage <- function(){# That must be real hourly wages. Yet if this
 
     #* actual wage should be the max of min wage and computed wage and the min of max wage and computed wage if policies are active and time is rip
     if (t >= start && gp("Act_minHourW") == 1){
-      R_HrWage_isg <- max(R_minHrWage_indexed, R_HrWage_isg)
+      R_HrWage_isg <- pmax(R_HrWage_isg, R_minHrWage_indexed)
     }
     if (t >= start && gp("Act_maxHourW") == 1){
-      R_HrWage_isg <- min(R_maxHrWage_indexed, R_HrWage_isg)
+      R_HrWage_isg <- pmin(R_HrWage_isg, R_maxHrWage_indexed)
     }
     R_HrWage_isg
   })
@@ -174,7 +174,7 @@ grossWageBill <- function() {
     # Minimum and maximum wage policy : # pmax(R_minHrWage, R_hrWage_isg_lvl) -> no longer necessary now that'is in the R_HrWage_isg
     # lvl = last period wages with current labour hours and current labour pop
     # instead of sweep this also works : (ST_labEmp_isg * R_hrWage_isg_lvl) * as.vector(F_labHr_i)
-    F_GWB_isg <-  sweep((ST_labEmp_isg * R_hrWage_isg_lvl), 1, F_labHr_i, `*`)
+    F_GWB_isg <-  sweep((ST_labEmp_isg * R_hrWage_isg_lvl), "Industry", F_labHr_i, `*`)
     F_GWB_isg
     #previous formula (changed 11/11/22)
     #(max(wage min[gender,ind,skill],wage gis[gender,ind,skill])*hours i[ind]*L \
@@ -203,10 +203,10 @@ desiredLabour_i  <- function() {
 
 desiredLabour_isg  <- function() {
   eq({# L is - employed workers by industry and skill (in fact its **desired** employment)
-    ST_desLab_is <- sweep(SH_skill_is_lvl, 1, ST_desLab_i, `*`)
+    ST_desLab_is <- sweep(SH_skill_is_lvl, "Industry", ST_desLab_i, `*`)
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ LOGIC CHECK ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    if (!all(abs(rowSums(sweep(SH_skill_is_lvl, 1, ST_desLab_i, `*`)) - ST_desLab_i) < tolerance)) {
+    if (!all(abs(rowSums(sweep(SH_skill_is_lvl, "Industry", ST_desLab_i, `*`)) - ST_desLab_i) < tolerance)) {
       stop("Error: Row sums do not match ST_desLab_i within the allowed tolerance.")
     }
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~    
@@ -225,7 +225,7 @@ workingAgePop <- function(){
   eq({# Working age population cgs
     # Working age pop is defined out of levels variables in vensim : hence its a lagged variable
     ST_workAgePop_csg <- Pop_lvl
-    ST_workAgePop_csg[,c("child", "cap"),] <- 0
+    ST_workAgePop_csg[, non_skill, ] <- 0
     ST_workAgePop_csg["65+",,] <- 0
     ST_workAgePop_csg
   })
@@ -261,7 +261,7 @@ employedLabour  <- function() {
     rescaleFactor_sg <- colSums(ST_labS_csg, dims=1)/colSums(ST_desLab_isg, dims=1)
     rescaling_index <- which(rescaleFactor_sg < 1)
     rescaleFactor_sg[-rescaling_index] <- 1
-    rescaleFactor_sg[c("child", "cap"),] <- 0 # Storing it <<- would give an idea of labour bottlenecks - to check whether they are realistic
+    rescaleFactor_sg[non_skill, ] <- 0 # Storing it <<- would give an idea of labour bottlenecks - to check whether they are realistic
     rescaleFactor_isg <- template_industry_isg
     for(i in 1:length(industry)){
       rescaleFactor_isg[i,,"male"] <- rescaleFactor_sg[,"male"]
@@ -357,7 +357,12 @@ unemployedLabour <- function() {
 diffRateUnemploymentBySkill <- function() {
   eq({# The 0 in the "medium" column is there because we compute the skill shift in that column as the remainder between total amount of ppl in cohort minus skill shift in low and high columns
     # The 1 in the "cap" column is there in order to keep the amount of capitalists unchanged - they are by construction not affected by skill shift
-    R_diffSkill_u_s <-  c(0, R_u_s["medium"] - R_u_s["low"], 0, R_u_s["medium"] - R_u_s["high"], 1)
+    # Built by name: `child` and `medium` stay at zero by construction, and
+    # nothing here depends on the order of `pop_group`.
+    R_diffSkill_u_s <- template_population_s
+    R_diffSkill_u_s["low"]  <- R_u_s["medium"] - R_u_s["low"]
+    R_diffSkill_u_s["high"] <- R_u_s["medium"] - R_u_s["high"]
+    R_diffSkill_u_s["cap"]  <- 1
     R_diffSkill_u_s
   })
 }
