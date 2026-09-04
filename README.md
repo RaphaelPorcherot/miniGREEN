@@ -320,6 +320,30 @@ block. `eq()` does five things so that you do not have to:
 5. **Attaches metadata** (dependencies, parameters, originating function) to the
    result.
 
+Dependencies are collected by walking the block, and four kinds of name are
+excluded because they are not dependencies: variables the block assigns itself,
+`for` loop variables, the formal arguments of functions defined inside the
+block, and parameters read from `dp`.
+
+That third one is recent. Without it, writing a helper function inside an
+`eq()` block made `eq()` block on the helper's own argument names — they look
+like undefined variables to a walker that does not track scope.
+
+> Two things not to write inside an `eq()` block. A **model variable as a
+> formal's default value** — `function(x = R_labProd_i)` — because `all.names()`
+> does not descend into defaults, so it is not seen as a dependency and the
+> block may run before it is ready; read it in the body instead. And anything
+> that binds names in a way a syntactic walk cannot see (`assign()`,
+> `eval(parse(...))`).
+>
+> If automatic collection ever proves wrong in a way the exclusions cannot
+> cover, the fallback is to give `eq()` an explicit `dep = c(...)` argument
+> again and use it in place of the collected list. That is about five lines, and
+> nothing else in the design depends on inference. `eq()` carried exactly such a
+> parameter until now — left over from the original design, never read, silently
+> ignoring any caller that used it. It has been removed rather than left as a
+> trap.
+
 The contract you must respect when writing one:
 
 ```r

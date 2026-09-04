@@ -991,6 +991,36 @@ find_assigned_vars <- function(expr) {
 
 # helpfer function that centralise all the cleaning and return auxiliaries and dependencies ----------------
 # Helper function that centralizes all the cleaning and returns auxiliaries and dependencies
+# Formal arguments of functions defined inside the block ----------------------
+#
+# A name bound as a formal argument is not a dependency: it exists only while
+# the local function runs, and comes from its caller. Without this, writing a
+# helper inside an eq() block makes eq() block on the helper's own arguments.
+#
+# Only the argument *name* is excluded here. Note a pre-existing blind spot,
+# independent of this function: `all.names()` does not descend into the default
+# value of a formal, so `function(x = R_labProd_i)` never reports R_labProd_i as
+# a dependency at all — with or without this exclusion. Writing a model variable
+# as a formal default inside an eq() block would therefore let the block run
+# before that variable is ready. Do not do it; read the variable in the body.
+# Fixing it properly would mean walking the pairlist values, roughly six lines,
+# if the case ever turns up.
+find_local_formals <- function(expr) {
+  found <- character()
+  walk <- function(e) {
+    if (is.call(e)) {
+      if (identical(e[[1]], as.name("function")) && length(e) >= 2) {
+        nms <- names(e[[2]])
+        if (!is.null(nms)) found <<- c(found, nms)
+      }
+      lapply(as.list(e)[-1], walk)
+    }
+    invisible(NULL)
+  }
+  walk(expr)
+  unique(found[nzchar(found)])
+}
+
 clean_and_collect_dependencies <- function(expr) {
 
   # Liste des opérateurs à exclure des dépendances
@@ -1017,6 +1047,9 @@ clean_and_collect_dependencies <- function(expr) {
     unique(vars)
   }
   for_vars <- find_for_vars(expr)
+
+  # Formal arguments of functions defined in the block, which are local names
+  local_formals <- find_local_formals(expr)
 
   # Variables considérées comme des templates (à exclure)
   templates <- grep("^template_", all_vars, value = TRUE)
@@ -1053,7 +1086,8 @@ clean_and_collect_dependencies <- function(expr) {
   auxiliaries <- union(auxiliaries, gp_aux)
 
   # Déterminer les dépendances en excluant certaines variables
-  deps_all <- setdiff(all_vars, c(assigned_vars, for_vars, templates, auxiliaries, excluded_vars))
+  deps_all <- setdiff(all_vars, c(assigned_vars, for_vars, local_formals,
+                                  templates, auxiliaries, excluded_vars))
 
   # Retirer les opérateurs classiques *, /, +, -
   deps_all <- setdiff(deps_all, excluded_operators)
@@ -1072,7 +1106,16 @@ clean_and_collect_dependencies <- function(expr) {
 ## return the output to globalEnv
 ## récupère le nom du module qui est attribut de la fonction appellante et set() if run mode is on
 ## return an output but invisibly
-eq <- function(expr_block, dep = NULL) {
+# `eq()` takes only the block. It used to accept a `dep = c(...)` argument for
+# declaring dependencies by hand; automatic collection replaced it and the
+# parameter was left in the signature, silently ignored — a caller writing it
+# got no error and no effect. Removed.
+#
+# If automatic collection is ever wrong in a way find_local_formals() and the
+# rest cannot cover, reinstating an explicit argument is the fallback: give
+# eq() a `dep` parameter again and use it in place of `result$deps` below.
+# It is five lines. Nothing else in the design depends on inference.
+eq <- function(expr_block) {
 
   # Initialize message log if not already present
   if (!exists(".message_log", envir = .GlobalEnv)) {
