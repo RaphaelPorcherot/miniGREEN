@@ -164,21 +164,21 @@ deleted — the policies may come back.
 ## 3. Repository layout
 
 ```
-├── README_new.md          this file
+├── README.md          this file
 ├── vensim_model_2026.txt  the source of truth for the translation
 ├── src/
 │   ├── paths.R            every path in the project resolves through here
 │   ├── run_model.r        the orchestrator: loads, then runs the time loop
-│   ├── A-prepSteps/
-│   │   ├── 0-logConfig.r      logging
-│   │   ├── 1-customFunctions.r  engine: eq(), the d layer, loaders
+│   ├── A-prep-steps/
+│   │   ├── 0-log-config.r      logging
+│   │   ├── 1-custom-functions.r  engine: eq(), the d layer, loaders
 │   │   └── 2-structure.r      dimensions, templates, module list
 │   ├── B-modules/         one file per module, one function per equation
-│   ├── r-REWIND-assumptions.qmd
-│   ├── r-REWIND-inconsistencies.qmd    Vensim bugs found and how they were fixed
-│   └── r-REWIND-long-comments.qmd      comments preserved from the .mdl
+│   ├── assumptions.qmd
+│   ├── inconsistencies.qmd    Vensim bugs found and how they were fixed
+│   └── long-comments.qmd      comments preserved from the .mdl
 ├── input/
-│   ├── _scalars.csv       all scalar parameters and initial values
+│   ├── scalars.csv       all scalar parameters and initial values
 │   ├── initial/<MODULE>/  initial values of states
 │   ├── parameter/<MODULE>/ parameters
 │   └── lookup/<MODULE>/   graphical function data (x, y pairs)
@@ -405,7 +405,7 @@ x[, -1, ]                                                 # no
 x[, -which(dimnames(x)[[2]] %in% c("child","cap")), ]     # no
 ```
 
-This is not cosmetic. The bug recorded in `r-REWIND-inconsistencies.qmd` as
+This is not cosmetic. The bug recorded in `inconsistencies.qmd` as
 *"capitalists actually eating out of the labour force"* is exactly a case of a
 hand-written exclusion getting it wrong.
 
@@ -415,7 +415,6 @@ recoding is handled once, in the import manifest (§11), and nowhere else.
 ### 5.4 Equation functions
 
 Function names may be verbose — they should say what the equation does, in full.
-`snake_case` is fine here; clarity wins over brevity.
 
 Functions affected by a policy or a shock are prefixed `POL_` or `SHOCK_`, and
 are listed first in their module file.
@@ -757,10 +756,10 @@ which is usually the binding constraint, not the code.
 `tool/` holds the helpers that convert Vensim text exports into the CSV files
 under `input/`.
 
-* `tool/dataToConvert/` — raw `.txt` blocks copied out of Vensim (matrices,
+* `tool/data-to-convert/` — raw `.txt` blocks copied out of Vensim (matrices,
   `TABBED ARRAY`, constant lists)
-* `tool/dataLookup/` — raw `.txt` blocks for graphical functions
-* `tool/DirectedGraphs.qmd` — builds the dependency graph consumed by the Shiny
+* `tool/data-lookup/` — raw `.txt` blocks for graphical functions
+* `tool/directed_graphs.qmd` — builds the dependency graph consumed by the Shiny
   app
 
 **[planned]** The two extraction notebooks are replaced by a single parser driven
