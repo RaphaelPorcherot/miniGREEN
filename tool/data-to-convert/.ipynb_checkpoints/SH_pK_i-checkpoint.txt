@@ -1,8 +1,0 @@
-price capital weights i[ind]=
-	0.00216791,	0.000909732,	0.306807,	0.000624395,	0.00460079,	0.000899962,	0.450309,	0.0745137\
-		,	0.00728279,	0.000323304,	0.0624711,	0.00316163,	0.0329001,	0.0444042,	0.000586555\
-		,	0.00116219,	0.00372081,	0.00150135,	0.0016536
-	~	Dmnl
-	~	weights from the composition of the gross fixed capital formation
-		GET DIRECT CONSTANTS('economy.xlsx', 'investments' , 'pkweights')
-	|
