@@ -182,15 +182,18 @@ deleted — the policies may come back.
 │   ├── initial/<MODULE>/  initial values of states
 │   ├── parameter/<MODULE>/ parameters
 │   └── lookup/<MODULE>/   graphical function data (x, y pairs)
-├── output/                saved runs, documentation
-├── log/                   run logs
+├── output/                saved runs and snapshots (git-ignored)
+├── log/                   run logs (git-ignored)
 ├── tool/                  Vensim → R extraction helpers
-├── app/graph/             Shiny dependency-graph viewer
-└── docs/                  reference material, previous model versions
+└── app/graph/             Shiny dependency-graph viewer
 ```
 
 **All paths go through `src/paths.R`.** Never write a literal path in a module.
 The previous layout (`notebooks/r-nb/...`) is gone.
+
+**Files and directories are `kebab-case`** (`A-prep-steps/`, `0-log-config.r`,
+`long-comments.qmd`). The `camelCase` rule of §5 applies to R objects — variables
+and functions — not to file names.
 
 ---
 
@@ -414,7 +417,22 @@ recoding is handled once, in the import manifest (§11), and nowhere else.
 
 ### 5.4 Equation functions
 
-Function names may be verbose — they should say what the equation does, in full.
+Function names are **lowerCamelCase**, like variable names — the project uses one
+case convention throughout, never `snake_case`. They may be verbose: a function
+name should say what the equation does, in full.
+
+The underscore is therefore free to carry meaning rather than word boundaries. It
+separates the *components* of a name, exactly as it does for variables:
+
+| | |
+|---|---|
+| `SH_A_in_B` | share of A in B |
+| `R_C_of_D` | rate of C, of D |
+| `employmentRate_sg` | the same quantity, by population group and gender |
+| `realCapitalDepreciation_lag` | the lagged version of `realCapitalDepreciation` |
+
+So `_` marks a qualifier — a subscript set, a variant, a lag — and never a word
+break inside a concept. `realCapitalStock`, not `real_capital_stock`.
 
 Functions affected by a policy or a shock are prefixed `POL_` or `SHOCK_`, and
 are listed first in their module file.
@@ -854,7 +872,12 @@ git push -u origin dev/my-thing
 
 ### Open
 
-* `FI`, `TU`, `PVA`, `ENV`, `WD`, `WS` modules not started.
+* **`FI` (finance) is new in the 2026 model and is in scope.** It brings 8 of the
+  35 states — `stock of bonds`, `interest`, `debt i`, and `b`/`d`/`eq` by
+  household group and for capitalists — plus the accounting identities that go
+  with them. It has no counterpart in the current R code and has to be written
+  from scratch.
+* `TU`, `PVA`, `ENV`, `WD`, `WS` modules not started, and not in scope for now.
 * Calibration. `run_model(params = NULL, scenario = NULL)` exists as the entry
   point but no calibration procedure is written. Block calibration — module by
   module, holding the rest fixed — is the realistic approach for a model with
@@ -873,8 +896,13 @@ git push -u origin dev/my-thing
 
 ## Sources and references
 
-* `docs/txt_modl/vensimModel_noDelete.txt` — the 2025 model, for comparison
-* `docs/REWIND-model/` — spreadsheets holding the calibration data
-* `docs/define-model-dafermos/` — DEFINE, a comparable ecological SFC model in R
-* `docs/sysde/` — SD tutorials in R
+Kept outside this repository:
+
+* `vensimModel_noDelete.txt` — the 2025 model, for comparison with the 2026 one
+* `economy.xlsx`, `demography.xlsx`, `environment.xlsx`, `calibration_2024.xlsx` —
+  the calibration spreadsheets. Every `GET DIRECT CONSTANTS('economy.xlsx', ...)`
+  in the Vensim source points at these, so they are the authority for any number
+  imported into `input/`.
+* DEFINE — a comparable ecological SFC model written in R
+* `sysde` — system dynamics tutorials in R
 * Duggan, *System Dynamics Modeling with R* (2016)
