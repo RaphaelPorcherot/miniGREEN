@@ -226,6 +226,7 @@ model_states <- data.frame(
     "wage gis",
     "male share is",
     "skill trend is",
+    "smooth(sens skill cs * (u s[mid] - u s), duration skill transition)",
     "K i",
     "Share source Ed Z nrg i",
     "I desired i",
@@ -244,12 +245,13 @@ model_states <- data.frame(
     "R_hrWage_isg",
     "SH_male_is",
     "SH_skill_is",
+    "R_smoothSkillShift_s",
     "ST_Kreal_i",
     "SH_enSrc_enDemZ_in",
     NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA
   ),
   module = c(
-    "DEM", "L", "L", "L", "L", "I", "EN",
+    "DEM", "L", "L", "L", "L", "DEM", "I", "EN",
     "I", "GOV", "TECH", "TECH", "CADA",
     "FI", "FI", "FI", "FI", "FI", "FI", "FI", "FI", "FI"
   ),
@@ -260,6 +262,7 @@ model_states <- data.frame(
     "A share economically. The inflow contains a saturation guard that reads the stock itself (IF THEN ELSE(... + male share is > 1, 0, ...)), so it is self-referential and genuinely path-dependent. Cannot be an auxiliary.",
     "A share economically. Its inflow is purely exogenous (convergence * trend), so a closed-form cumulative sum would work. Kept as a state for uniform treatment only.",
     NA,
+    "A Vensim SMOOTH, which is a hidden stock: dSmooth/dt = (input - Smooth) / delay. It is not one of the 35 INTEG because Vensim writes SMOOTH() inline rather than declaring it, but it carries its own past exactly as they do, and is declared here so that it appears in d like any other state.",
     "A share economically. The inflow reads the stock: -g(t) * ZIDZ(Share[nrg], 1 - Share[renew]). Making it an auxiliary would create an algebraic loop, and the model is sequentially solvable precisely because this one is not.",
     NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA
   )

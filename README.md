@@ -329,20 +329,28 @@ That third one is recent. Without it, writing a helper function inside an
 `eq()` block made `eq()` block on the helper's own argument names — they look
 like undefined variables to a walker that does not track scope.
 
-> Two things not to write inside an `eq()` block. A **model variable as a
-> formal's default value** — `function(x = R_labProd_i)` — because `all.names()`
-> does not descend into defaults, so it is not seen as a dependency and the
-> block may run before it is ready; read it in the body instead. And anything
-> that binds names in a way a syntactic walk cannot see (`assign()`,
-> `eval(parse(...))`).
->
-> If automatic collection ever proves wrong in a way the exclusions cannot
-> cover, the fallback is to give `eq()` an explicit `dep = c(...)` argument
-> again and use it in place of the collected list. That is about five lines, and
-> nothing else in the design depends on inference. `eq()` carried exactly such a
-> parameter until now — left over from the original design, never read, silently
-> ignoring any caller that used it. It has been removed rather than left as a
-> trap.
+#### What not to write inside an `eq()` block
+
+The collection is a **syntactic walk**. It cannot see anything that only exists
+at run time. Three things therefore break it, and all three fail **silently** —
+the block runs when it should have waited, on whatever stale value was lying
+around. The same list is in `src/B-modules/_module-template.r`, where you will
+be looking when you write a new equation.
+
+| Do not write | Why | Instead |
+|---|---|---|
+| `f <- function(x = R_labProd_i)` | `all.names()` does not descend into a formal's default value, so `R_labProd_i` is never seen at all | read the variable in the body: `f <- function(x) ...; f(R_labProd_i)` |
+| `assign(paste0("ST_", k), v)`, `get(nm)`, `eval(parse(text = ...))` | there is no name in the expression for the walk to find | write the name out |
+| `gp(param_name)` — a symbol, not a string | the walk takes the symbol's *name*, so it records `"param_name"` and never the parameter actually read | `gp("R_fertility")` |
+
+If automatic collection ever proves wrong in a way the exclusions cannot cover,
+the fallback is to give `eq()` an explicit `dep = c(...)` argument again and use
+it in place of the collected list. That is about five lines, and nothing else in
+the design depends on inference. `eq()` carried exactly such a parameter until
+now — left over from the original design, never read, silently ignoring any
+caller that used it. It has been removed rather than left as a trap.
+
+#### The contract
 
 The contract you must respect when writing one:
 
@@ -760,11 +768,10 @@ dSmooth/dt   = (input - Smooth) / delay
 Smooth(t+dt) = Smooth(t) + (input(t) - Smooth(t)) * dt / delay
 ```
 
-**[planned]** The implementation follows that literally. The function takes
-**values, not expressions** — no introspection, no scope hunting. The smoothed
-quantity is a variable in its own right, registered with `Kind = "state"`, and
-therefore visible in `d`, in the outputs and in the dependency graph like
-anything else.
+The implementation follows that literally. The function takes **values, not
+expressions** — no introspection, no scope hunting. The smoothed quantity is a
+variable in its own right, registered with `Kind = "state"`, and therefore
+visible in `d`, in the outputs and in the dependency graph like anything else.
 
 ```r
 smooth_vensim <- function(input, prev, delay, dt = 1) {
@@ -777,11 +784,27 @@ smooth_vensim <- function(input, prev, delay, dt = 1) {
 Resolving where `input` and `prev` come from is the job of `eq()`, exactly as for
 every other variable.
 
+Resolving where `input` and `prev` come from is the caller's job:
+
+```r
+smoothSkillShift <- function() {
+  eq({
+    input <- R_diffSkill_u_s * gp("R_sensSkillShift_s")
+    R_smoothSkillShift_s <- if (t == startYear) input
+      else smooth_vensim(input, prev = gd("R_smoothSkillShift_s", t - dt),
+                         delay = gp("timeSkillTransition"), dt = dt)
+    R_smoothSkillShift_s
+  })
+}
+```
+
 > The previous implementation resolved variables itself, by walking the
 > expression and searching `dp`, `init`, `d` and the global environment in turn.
-> It produced the right answer in the first period and a wrong one afterwards,
-> which went unnoticed because the time loop had never run past the first
-> period. It is being replaced, not tidied.
+> It produced the right answer in the first period and a wrong one afterwards —
+> a whole history from `gda()` multiplied by a per-element vector from `gp()`,
+> which recycles down the columns instead of across them. It went unnoticed
+> because the time loop had never run past the first period. It was replaced,
+> not tidied. See `inconsistencies_new.md`.
 
 Lookups, worked example:
 

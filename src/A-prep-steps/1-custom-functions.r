@@ -7,135 +7,43 @@
 # VENSIM to R #
 # ~~~~~~~~~~~ #
 
-# To help smoothing the transition, in the documentation can be found a list of common equivalents or alternative strategies to reproduce vensim-like functions in R. 
+# The documentation lists the common Vensim constructs and their R equivalents.
+# Only the ones with no direct R counterpart are written out here.
 
-# Below can be found only the code for the custom functions that needed to be written to reproduce vensim features with no direct R counterparts.
+# ------------------------------------------------------------------------------
+# SMOOTH()
+# ------------------------------------------------------------------------------
+#
+# Vensim's SMOOTH(input, delay) is a first-order exponential smooth, which is a
+# hidden stock:
+#
+#     dSmooth/dt = (input - Smooth) / delay
+#     Smooth(t)  = Smooth(t - dt) + (input(t) - Smooth(t - dt)) * dt / delay
+#     Smooth(0)  = input(0)                    # it initialises to its input
+#
+# This function does that arithmetic and nothing else. It takes **values**, not
+# expressions: `prev` is last period's smoothed value, read from `d` by the
+# equation that calls it, like any other lagged variable.
+#
+# The smoothed quantity is therefore a variable of the model in its own right,
+# with Kind == "state" — visible in `d`, in the outputs and in the dependency
+# graph. That is what it always was in Vensim; it was only hidden.
+#
+# The previous implementation resolved its own variables, walking the
+# expression it was handed and searching dp, init, d and the global environment
+# in turn. It returned the right answer in the first period and a wrong one
+# afterwards — it multiplied a (periods x elements) matrix from gda() by a
+# per-element vector from gp(), which recycles down the columns instead of
+# across them, then returned a single value where a vector was expected. Nobody
+# noticed because the time loop had never run past the first period.
 
-# What it does
-
-#smooth_vensim(x, delay)	✅	classique
-#smooth_vensim(x * 2, delay)	✅	constante dans l'expression
-#smooth_vensim(x * cst, delay)	✅	cst dans env global
-#smooth_vensim(x * y, delay)	✅	x, y dans d, récupérés avec gda()
-#smooth_vensim(cst * x * y, delay)	✅	mix de globales et de d
-
-# What it does not
-
-# TBD
-
-smooth_vensim <- function(x, delay, dt = 1) {
-  # Chercher delay dans l'environnement global, dp, ou init
-  env <- parent.frame()
-
-  # Récupérer la valeur de delay depuis dp, init ou global
-  delay_expr <- deparse(substitute(delay))
-  delay_value <- NULL
-  if (exists("dp", envir = env) && delay_expr %in% get("dp", envir = env)$Name) {
-    # delay dans dp, récupérer la fonction gp(v)
-    delay_value <- gp(delay_expr)
-  } else if (exists("init", envir = env) && delay %in% get("init", envir = env)$Name) {
-    # delay dans init, récupérer la fonction gi(v)
-    delay_value <- gi(delay_expr)
-  } else if (exists(delay, envir = env)) {
-    # delay dans l'environnement global
-    delay_value <- get(delay, envir = env)
-  } else {
-    stop(paste("Delay variable", delay, "not found in dp, init or .GlobalEnv"))
+smooth_vensim <- function(input, prev, delay, dt = 1) {
+  alpha <- dt / delay
+  if (any(alpha <= 0) || any(alpha > 1)) {
+    stop("smooth_vensim(): alpha = dt/delay must lie in (0, 1]. ",
+         "Got dt = ", dt, ", delay = ", paste(delay, collapse = ", "), ".")
   }
-
-  # Calcul de alpha
-  alpha <- dt / delay_value
-  if (alpha <= 0 || alpha > 1) stop("alpha = dt/delay must lie in (0,1]")
-
-  # Créer un environnement temporaire pour évaluation des variables
-  x_expr <- substitute(x)
-  temp_env <- new.env(parent = env)
-  on.exit(rm(temp_env), add = TRUE)
-
-  t_val <- tryCatch(
-                    get("t", envir = env, inherits = TRUE), 
-                    error = function(e) 1
-  )
-
-  if (t_val == gp("startYear")) {
-    # Si t = gp("startYear"), on évalue directement les variables dans l'environnement temporaire
-    varnames <- all.vars(x_expr)
-
-    for (v in varnames) {
-      if (exists("init", envir = env) && v %in% get("init", envir = env)$Name) {
-        # La variable est dans init → gi
-        assign(v, gi(v), envir = temp_env)
-      } else if (exists("dp", envir = env) && v %in% get("dp", envir = env)$Name) {
-        # La variable est dans dp → gp
-        assign(v, gp(v), envir = temp_env)
-      } else if (exists(v, envir = env)) {
-        # Variable dans l'env global
-        assign(v, get(v, envir = env), envir = temp_env)
-      } else {
-        stop(paste("Variable", v, "not found in dp, init or .GlobalEnv"))
-      }
-    }
-    # Évaluer l'expression avec les variables dans temp_env
-    x_val <- eval(x_expr, envir = temp_env)
-    x <- unname(x_val)  # On enlève le nom de la variable pour simplifier
-  } else {
-    # Si t > 1, lissage passé
-    varnames <- all.vars(x_expr)
-
-    for (v in varnames) {
-      if (exists("d", envir = env) && v %in% get("d", envir = env)$Name) {
-        # La variable est dans d → gda
-        assign(v, get("gda", envir = env)(v), envir = temp_env)
-      } else if (exists("init", envir = env) && v %in% get("init", envir = env)$Name) {
-        # La variable est dans init → gi
-        assign(v, gi(v), envir = temp_env)
-      } else if (exists("dp", envir = env) && v %in% get("dp", envir = env)$Name) {
-        # La variable est dans dp → gp
-        assign(v, gp(v), envir = temp_env)
-      } else if (exists(v, envir = env)) {
-        # Variable dans l'env global
-        assign(v, get(v, envir = env), envir = temp_env)
-      } else {
-        stop(paste("Variable", v, "not found in d, dp, init or .GlobalEnv"))
-      }
-    }
-
-    x_val <- eval(x_expr, envir = temp_env)
-    x <- x_val
-  }
-
-  # Gestion vecteur ou matrice
-  if (is.matrix(x)) {
-    n <- nrow(x)
-    p <- ncol(x)
-  } else {
-    n <- length(x) # To check if x is scalar, 1D, 2D etc
-    p <- 1
-    x <- matrix(x, ncol = 1)
-  }
-
-  # First period case : Si t_val = gp("startYear"), on retourne x tel quel, there is nothing to smooth over
-  if (n == 1 || t_val == gp("startYear")) { 
-    if (p == 1) {
-      return(as.vector(x))  # Retourner sous forme de vecteur si p == 1
-    } else {
-      return(x)  # Retourner sous forme de matrice si p > 1
-    }    
-  } else {
-    # Sinon on applique le lissage
-    S <- matrix(0, nrow = n, ncol = p)
-    for (j in 1:p) {
-      S[1, j] <- x[1, j]
-      for (i in 2:n) {
-        S[i, j] <- S[i - 1, j] + alpha * (x[i, j] - S[i - 1, j])
-      }
-    }
-    if (p == 1) {
-      return(as.vector(S[n, ]))  # Retourner sous forme de vecteur si p == 1
-    } else {
-      return(S[n, ])  # Retourner sous forme de matrice si p > 1
-    }
-  }
+  prev + alpha * (input - prev)
 }
 
 ############################################################################################################

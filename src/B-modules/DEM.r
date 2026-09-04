@@ -82,6 +82,29 @@ maturationIn <- function() {
   })
 }
 
+# Vensim: smooth(sens skill cs[skill] * (u s[mid] - u s[skill]),
+#                duration skill transition)
+#
+# A SMOOTH is a hidden stock, so it is declared here as a variable of its own
+# rather than recomputed inside the two equations that read it — which is also
+# why it appears only once, though Vensim writes it out at every use.
+smoothSkillShift <- function() {
+  eq({
+    input <- R_diffSkill_u_s * gp("R_sensSkillShift_s")
+
+    # SMOOTH initialises to its input; afterwards it relaxes towards it
+    R_smoothSkillShift_s <- if (t == startYear) {
+      input
+    } else {
+      smooth_vensim(input,
+                    prev  = gd("R_smoothSkillShift_s", t - dt),
+                    delay = gp("timeSkillTransition"),
+                    dt    = dt)
+    }
+    R_smoothSkillShift_s
+  })
+}
+
 skillShiftIncomingPop <- function() {
   eq({     
     totalPop_lvl <- Pop_lvl
@@ -107,9 +130,8 @@ skillShiftIncomingPop <- function() {
 
     ## We store neither sharesPop nor totalPop, becasue they are start-of-period of values. 
 
-    smooth_vector <- template_population_s
-    smooth_vector[] <- smooth_vensim(R_diffSkill_u_s * R_sensSkillShift_s,timeSkillTransition)
-    smooth_vector_sg <- bind_cols("male"=smooth_vector, "female"=smooth_vector )
+    smooth_vector_sg <- bind_cols("male"  = R_smoothSkillShift_s,
+                                  "female" = R_smoothSkillShift_s)
 
     F_maturationIn_csg <- template_population_csg
 
@@ -141,9 +163,8 @@ skillShiftAllPop <- function() {
     totalPop[,,"male"] <- rowSums(Pop_lvl[,, "male"])
     totalPop[,,"female"] <- rowSums(Pop_lvl[,, "female"])
 
-    smooth_vector <- template_population_s
-    smooth_vector[] <- smooth_vensim(R_diffSkill_u_s * R_sensSkillShift_s, timeSkillTransition)
-    smooth_vector_sg <- bind_cols("male"=smooth_vector, "female"=smooth_vector )
+    smooth_vector_sg <- bind_cols("male"  = R_smoothSkillShift_s,
+                                  "female" = R_smoothSkillShift_s)
 
     skillshift_sg <- 1 + smooth_vector_sg 
 

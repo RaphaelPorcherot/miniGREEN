@@ -700,6 +700,7 @@ eq_run_passes(max_passes = max_passes, body = function() {
     death()
     maturationOut()
     maturationIn()
+    smoothSkillShift()
     skillShiftIncomingPop()
     skillShiftAllPop()
     endCurrentPeriodPop()

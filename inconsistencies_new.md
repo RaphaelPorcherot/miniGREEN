@@ -221,6 +221,95 @@ now rather than later.
 
 ---
 
+## `smooth_vensim()` — right in the first period, wrong in every one after
+
+**Status:** fixed.
+**Where:** `src/A-prep-steps/1-custom-functions.r`, and its two call sites in
+`src/B-modules/DEM.r`.
+**Found:** reviewing the engine before the time loop is added.
+
+### Problem
+
+The function resolved its own variables. Handed the *expression*
+`R_diffSkill_u_s * R_sensSkillShift_s`, it walked it, looked each name up in
+`d`, `init`, `dp` and the global environment in turn, and evaluated the result.
+
+Past the first period that meant:
+
+* `R_diffSkill_u_s` was found in `d`, so `gda()` returned its **whole history**:
+  a matrix of periods x PopGroup.
+* `R_sensSkillShift_s` was found in `dp`, so `gp()` returned a **vector of 5**,
+  one sensitivity per population group.
+* The product of the two recycles the vector **down the columns**, not across
+  them.
+
+Each sensitivity therefore lands on a different population group depending on
+how many periods have elapsed. With six periods simulated:
+
+| | `child` | `low` | `medium` | `high` | `cap` |
+|---|---|---|---|---|---|
+| computed, t3 | 0 | -0.0393 | 0 | 0 | **0.0169** |
+| correct, t3 | 0 | -0.0917 | 0 | -0.0083 | 0 |
+
+14 of 30 cells wrong, and `child`, `medium` and `cap` — structurally zero,
+since nobody in those groups changes skill — pick up non-zero values. The
+scrambling then feeds the smoothing itself, so the returned value is wrong even
+where the last row happens to line up.
+
+None of this showed, because the first period takes a different branch and
+returns the input unsmoothed, and the time loop has never run.
+
+This is the second of three bugs of that shape, with `gd()` ignoring its period
+argument and `max()` collapsing the input-output matrix.
+
+### Solution
+
+`smooth_vensim()` now takes **values** and does the arithmetic, nothing else:
+
+```r
+smooth_vensim <- function(input, prev, delay, dt = 1) {
+  alpha <- dt / delay
+  if (any(alpha <= 0) || any(alpha > 1)) stop(...)
+  prev + alpha * (input - prev)
+}
+```
+
+Resolving where `input` and `prev` come from is the caller's job, as it is for
+every other variable. A `SMOOTH` is a hidden stock, so the smoothed quantity is
+now a variable of the model in its own right — `R_smoothSkillShift_s`, with
+`Kind == "state"`, registered in `model_states` and visible in `d`:
+
+```r
+smoothSkillShift <- function() {
+  eq({
+    input <- R_diffSkill_u_s * gp("R_sensSkillShift_s")
+    R_smoothSkillShift_s <- if (t == startYear) input
+      else smooth_vensim(input, prev = gd("R_smoothSkillShift_s", t - dt),
+                         delay = gp("timeSkillTransition"), dt = dt)
+    R_smoothSkillShift_s
+  })
+}
+```
+
+Vensim writes the same `smooth(...)` out at each use; there is one state here
+because both call sites smooth the same expression.
+
+### Verified
+
+The arithmetic, against the analytic form: converges on a constant input
+(0.9977 after 15 steps, alpha = 1/3), half-life 1.71 theoretical against 2
+observed, step response lags without overshooting.
+
+Over ten real periods with a drifting input: the smooth initialises to its
+input, trails a rising input without ever going backwards, stays within its
+range, closes the gap, keeps the structurally-zero groups at zero, and writes a
+value to `d` each period.
+
+No existing variable changed — `d` gains one row and the other 72 are
+untouched.
+
+---
+
 ## `max()` / `min()` used where `pmax()` / `pmin()` was meant — a whole family
 
 **Status:** fixed, four sites.

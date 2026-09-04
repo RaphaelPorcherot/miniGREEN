@@ -39,16 +39,61 @@
 # opération skillShift
 # objet de l'opération _maleLabourShare (si not obvious)
 
-#TEMPLATE (replace <VARIABLE>, <EQUATION>, <DEPENDENCY> and <FUNCTION> with adequate wording)
-# Note the { }. Dep are optionnal (standard value is NULL) 
-# <FUNCTION>  <- function() {
+# ==============================================================================
+# WHAT NOT TO WRITE INSIDE AN eq() BLOCK
+# ==============================================================================
+#
+# eq() works out what an equation depends on by *reading* the block — walking
+# the expression for names, and excluding the ones that are not dependencies:
+# variables the block assigns itself, `for` loop variables, the formal
+# arguments of functions defined in the block, and parameters read from `dp`.
+#
+# It is a syntactic walk. It cannot see anything that only exists at run time.
+# Three things therefore break it. All three fail SILENTLY: the block runs when
+# it should have waited, and uses whatever stale value was lying around.
+#
+# 1. A MODEL VARIABLE AS A FORMAL'S DEFAULT VALUE
+#
+#      f <- function(x = R_labProd_i) x * 2          # WRONG
+#      f <- function(x) x * 2 ; f(R_labProd_i)       # right
+#
+#    all.names() does not descend into default values, so R_labProd_i is not
+#    seen at all and never becomes a dependency. Read the variable in the body.
+#
+# 2. A NAME BUILT AT RUN TIME
+#
+#      assign(paste0("ST_", thing), value)           # WRONG
+#      get(varname)                                  # WRONG
+#      eval(parse(text = ...))                       # WRONG
+#
+#    There is no name in the expression for the walk to find.
+#
+# 3. gp() / gi() / gl() CALLED WITH ANYTHING BUT A LITERAL STRING
+#
+#      gp("R_fertility")                             # right, records R_fertility
+#      gp(param_name)                                # WRONG, records "param_name"
+#
+#    The walk takes the symbol's *name*, not its value, which it cannot know.
+#    So the parameter actually read is never recorded, and a name that is not a
+#    parameter is recorded instead.
+#
+# If you ever need one of these, say so rather than working around it: the
+# fallback is to give eq() an explicit `dep = c(...)` argument again, which is
+# about five lines. See README.md section 4.4.
+#
+# ------------------------------------------------------------------------------
+# TEMPLATE (replace <VARIABLE>, <EQUATION> and <FUNCTION> with adequate wording)
+# The last line must be the bare name of the target variable: that is how eq()
+# knows what the equation computed.
+#
+# <FUNCTION> <- function() {
 #   eq({
-#  <INTERMEDIATE VARIABLE> <- <EQUATION>
-#  <VARIABLE> <- <EQUATION> <INTERMEDIATE VARIABLE>
-
-#    <VARIABLE> (to be sure that it will return the result of the last line)
-#)}
-#}
+#     <INTERMEDIATE VARIABLE> <- <EQUATION>
+#     <VARIABLE> <- <EQUATION> <INTERMEDIATE VARIABLE>
+#
+#     <VARIABLE>
+#   })
+# }
 
 
 # BEGIN Fonctions ------------------------------------------------------------------------------------------------
