@@ -171,9 +171,9 @@ deleted — the policies may come back.
 │   ├── run_model.r        the orchestrator: loads, then runs the time loop
 │   ├── snapshot.r         take / check a reference snapshot (§9.1)
 │   ├── A-prep-steps/
-│   │   ├── 0-log-config.r      logging
-│   │   ├── 1-custom-functions.r  engine: eq(), the d layer, loaders
-│   │   └── 2-structure.r      dimensions, templates, module list
+│   │   ├── 0-log-config.r      logging: levels, blocks, object listings
+│   │   ├── 1-custom-functions.r  engine: eq(), the table layer, keep, loaders
+│   │   └── 2-structure.r      dimensions, templates, modules, the states registry
 │   ├── B-modules/         one file per module, one function per equation
 │   ├── assumptions.qmd
 │   ├── inconsistencies.qmd    Vensim bugs found and how they were fixed
@@ -238,7 +238,24 @@ Three further columns and one further table:
 
 `Scenario` will become a column of `d` when scenarios arrive.
 
-### 4.2 Reading and writing
+### 4.2 The keep registry
+
+`clean_ws()` frees memory by emptying the global environment. Everything the
+model needs must be registered first:
+
+```r
+keep_add("someName")   # protect specific names
+keep_snapshot()        # protect everything defined so far
+keep_list()            # what is protected
+clean_ws()             # remove the rest
+```
+
+`run_model.r` calls `keep_snapshot()` once, right after the modules load — at
+that point the global environment holds the structure, the four tables and the
+equations, and nothing else. Anything created afterwards (the intermediate
+values of a period) is fair game for `clean_ws()`.
+
+### 4.3 Reading and writing
 
 | Function | Does |
 |---|---|
@@ -279,7 +296,7 @@ Measured on this model:
 | allocate a row (1000×) | 4.95 s | 0.023 s — **215×** |
 | read a variable (500×) | 1.06 s | 0.021 s — **50×** |
 
-### 4.3 `eq()` — the contract
+### 4.4 `eq()` — the contract
 
 Every equation of the model is an R function whose body is a single `eq({...})`
 block. `eq()` does five things so that you do not have to:
@@ -307,7 +324,7 @@ myEquation <- function() {
 The last line has to be the bare name of the target variable. That is how `eq()`
 knows what it just computed.
 
-### 4.4 The main loop
+### 4.5 The main loop
 
 Because `eq()` refuses to run an equation whose inputs are missing, **you do not
 have to order the equations correctly**. The loop runs several passes; each pass
@@ -951,12 +968,31 @@ git push -u origin dev/my-thing
 * `read_and_validate_csv()` reported missing columns with `message()`, not
   `stop()`.
 * `load_3d()` referenced `desc` before it existed in that scope.
-* **Double sourcing.** The `BEGIN`/`END` + tempfile pattern re-sourced every
-  module file a second time into a temporary environment, purely to list its
-  objects for the log. Replaced by `local({})` plus a `log_objects()` helper,
-  which also removes the need for `toKeep0/1/2`.
-* `toKeep`, a mutable global appended to with `<<-` from a dozen places,
-  replaced by a registry environment populated by the loaders themselves.
+* **Double sourcing.** The `BEGIN`/`END` + tempfile pattern read a file back,
+  cut out the section between two comment markers, wrote it to a temp file and
+  sourced *that* into a throwaway environment — purely to find out what the file
+  had defined, for the log. Every prep step and all thirteen modules were
+  therefore evaluated twice. `ls()` on the environment that was just populated
+  answers the same question. Gone, along with `toKeep0/1/2`.
+
+  It cost nothing in time — measured at ~10 s for a full run either way, since
+  what was being re-evaluated is function definitions. What it cost was
+  robustness: the markers had to match exactly, a stray `# END` anywhere in the
+  file silently truncated the section, and nothing checked the result.
+* `_0verbose.r`, sourced at the foot of each module to produce that listing, is
+  deleted. `sourceSet()` already computes the same list as a by-product of
+  sourcing the file, so the thirteen modules lose their trailing boilerplate
+  (`module_name <- "X"`, the `source()`, the `toKeep` append) entirely.
+* `toKeep`, a mutable global appended to with `<<-` from a dozen places in an
+  order that had to be right, replaced by a **keep registry**: an environment
+  with `keep_add()`, `keep_snapshot()` and `keep_list()`. Registration is
+  idempotent and order-independent, and no reassignment can silently drop an
+  entry. `keep_snapshot()` is called once, after the modules load, and protects
+  everything defined up to that point.
+* Logging has levels (`log_info` / `log_warn` / `log_error`, threshold set in
+  `log_init()`), a timestamp and a level on every line, and no emoji in the
+  file — a log is read with `grep`, not admired. `log_message()` survives as an
+  alias for `log_info()`.
 * `_0verbose.R` was capitalised while all thirteen modules sourced it as `.r`.
   That only worked because macOS has a case-insensitive filesystem; it would
   have failed on Linux.

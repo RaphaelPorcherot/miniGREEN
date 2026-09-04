@@ -1,5 +1,3 @@
-module_name <- "CADA"
-
 # BEGIN Fonctions ------------------------------------------------------------------------------------------------
 # Here put the functions that are affected by policy (POL_) and/or shock (SHOCK_)
 
@@ -108,10 +106,3 @@ CarbonCostTotal <- function(){
 
 
 # END Fonctions --------------------------------------------------------------------------------------------------
-
-source(path_module("_0verbose"))
-# Store the modules functions in the objects to be retained when cleaning workspace
-toKeep <- c(toKeep, functions_in_env)
-
-
-

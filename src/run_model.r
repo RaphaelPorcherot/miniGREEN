@@ -43,7 +43,6 @@ suppressPackageStartupMessages({
 })
 
 # --- engine ----------------------------------------------------------------
-toKeep    <- c("toKeep")
 input_dir <- DIR_INPUT
 
 source(path_prep("0-log-config.r"))
@@ -378,7 +377,6 @@ log_message("✅ Parameters datatable is loaded in dp.")
 # Open modules files                
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-module_dir <- DIR_MODULES
 loading_modules <- c("POLICY", # Policy 
                      "DEM", # Demography
                      #"TU", # Time-Use
@@ -401,11 +399,15 @@ loading_modules <- c("POLICY", # Policy
 
 
 func_in_mod <- list()
-for(i in loading_modules){
-    module_name <- i
-    loaded_funcs <- sourceSet(module_name)
-    func_in_mod[[module_name]] <- loaded_funcs
+for (m in loading_modules) {
+    func_in_mod[[m]] <- sourceSet(m)
 }
+
+# Everything the model needs now exists: structure, tables, equations. Register
+# it, so that clean_ws() can free anything created later without taking the
+# model with it. See README.md §4.1.
+keep_snapshot()
+log_objects(keep_list(), "Registered (protected from clean_ws)")
 
 t <- (gp("startYear"):gp("endYear"))[1]
 idx_t <- t - gp("startYear") +1
@@ -500,6 +502,7 @@ memory_checkpoint("Step 3.3 after full init")
 
 # developing or running ? # -----------------------------------------------------------------
 dev_or_run <- "run"#"dev" #run # ion
+keep_add(c("dev_or_run", ".message_log"))  # engine state, must survive clean_ws()
 
 #============================================================================
 # STEP 4 — The model

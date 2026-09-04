@@ -177,7 +177,7 @@ create_data_table <- function(name, n, cols = list(), order_by = NULL) {
 
   assign(name, tbl, envir = .GlobalEnv)  # Assign to global environment
   table_register(name)
-  toKeep <<- c(toKeep, name)
+  keep_add(name)
 }
 
 # loadFillPol to load policy shocks and shifts --------------------------------------------------------------
@@ -545,26 +545,41 @@ loadFill <- function(to_load, input_dir = NULL) {
 # source module files and assign module name to each function -------------------------------------------------
 
 sourceSet <- function(module_name) {
-  prev <- ls(envir=.GlobalEnv)
-  module_path <- here(module_dir, paste0(module_name, ".r")) 
+  module_path <- path_module(module_name)
   if (!file.exists(module_path)) stop("Module file not found: ", module_path)
+
+  before <- ls(envir = .GlobalEnv)
   source(module_path)
+  after  <- ls(envir = .GlobalEnv)
 
-  # identify new function
-  now <- ls(envir=.GlobalEnv)
-  delta <- setdiff(now, prev)
-  is_func <- sapply(delta, function(nom) is.function(get(nom, envir = .GlobalEnv)))
-  delta <- delta[which(is_func)]
+  # what the file just defined
+  new_names <- setdiff(after, before)
+  is_func   <- vapply(new_names, function(n) is.function(get(n, envir = .GlobalEnv)), logical(1))
+  equations <- new_names[is_func]
 
-  # attribute them module_name for eq() to retrieve and associate to output
-  for(f in delta){
-    func <- get(f, envir=.GlobalEnv)  
-    attr(func, "module") <- module_name
-    assign(f, func, envir=.GlobalEnv)
+  # tag each one with its module, so that eq() can label its output
+  for (f in equations) {
+    fn <- get(f, envir = .GlobalEnv)
+    attr(fn, "module") <- module_name
+    assign(f, fn, envir = .GlobalEnv)
   }
 
-  invisible(delta) # we could store the list of functions in it
+  # Log what the module brought in. This used to live in _0verbose.r, which
+  # each module sourced at its own foot: it re-read the file, re-sourced the
+  # section between the BEGIN/END Fonctions markers into a temp environment,
+  # and listed that. Every module was therefore evaluated twice. The diff above
+  # is the same list, for free.
+  log_block("Module", module_name)
+  policy <- grep("^(POL|SHOCK)", equations, value = TRUE)
+  log_objects(policy, "Policy and shock equations")
+  log_objects(setdiff(equations, policy), "Equations")
+
+  keep_add(new_names)
+  message(module_name, " loaded (", length(equations), " equations)")
+
+  invisible(equations)
 }
+
 
 
 # ==============================================================================
@@ -806,39 +821,58 @@ memory_checkpoint <- function(step_name = "") {
 }
 
 
-# Fonction pour supprimer tous les objets sauf ceux dans 'toKeep' ---------------------------------------------
-clean_ws <- function() {
-  # Vérifiez si 'toKeep' existe dans l'environnement global
-  if (!exists("toKeep", envir = .GlobalEnv)) {
-    stop("The list of objects to be kept has not been defined.")
-  }
+# ==============================================================================
+# THE KEEP REGISTRY
+# ==============================================================================
+#
+# clean_ws() frees memory by emptying the global environment. Everything the
+# model needs to keep working must be registered first.
+#
+# This replaces `toKeep`, a plain character vector that a dozen places appended
+# to with `<<-`, in an order that had to be right. The registry is an
+# environment: registration is idempotent, order-independent, and nothing can
+# quietly drop an entry by reassigning the vector.
 
-  # Obtenez la liste de tous les objets dans l'environnement global
-  all_objects <- ls(envir = .GlobalEnv)
+.keep <- new.env(parent = emptyenv())
+.keep$names <- character()
 
-  # Supprimez tous les objets qui ne sont pas dans 'toKeep'
-  objects_to_remove <- setdiff(all_objects, toKeep)
-
-  if (length(objects_to_remove) == 0) {
-    message("No objects to delete. All objects are retained.")
-    log_message("No objects to delete. All objects are retained.")  # Utilisation de log_file directement
-    return()
-  }
-  # Supprimez les objets à partir de l'environnement global
-  rm(list = objects_to_remove, envir = .GlobalEnv)
-  deleted_objects_msg <- paste(objects_to_remove, collapse = ", ")
-  message("The following objects have been deleted: ", deleted_objects_msg)
-  sep <- paste(rep("─", 60), collapse = "")
-  log_message(paste0(
-                     "\n", sep,
-                     "\n", "🗑️ Cleaning workspace",
-                     "\n⏰ ", format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
-                     "\n", sep)
-  )
-
-  log_message(paste("The following objects have been deleted: ", deleted_objects_msg))  # Utilisation de log_file directement
-
+## Protect names from clean_ws().
+keep_add <- function(...) {
+  nms <- unlist(list(...), use.names = FALSE)
+  .keep$names <- union(.keep$names, as.character(nms))
+  invisible(.keep$names)
 }
+
+## Protect everything defined so far. Called once, after the prep steps and the
+## modules are loaded: at that point the global environment holds the structure,
+## the tables and the equations, and nothing else.
+keep_snapshot <- function(envir = .GlobalEnv) {
+  keep_add(ls(envir, all.names = TRUE))
+}
+
+keep_list <- function() sort(.keep$names)
+
+## Empty the global environment of everything not registered.
+clean_ws <- function() {
+  if (!length(.keep$names)) {
+    stop("Nothing is registered yet. Call keep_snapshot() before clean_ws().")
+  }
+
+  to_remove <- setdiff(ls(envir = .GlobalEnv, all.names = TRUE), .keep$names)
+
+  if (!length(to_remove)) {
+    message("Nothing to clean: every object is registered.")
+    log_info("clean_ws: nothing to remove")
+    return(invisible(character()))
+  }
+
+  rm(list = to_remove, envir = .GlobalEnv)
+  message("Cleaned ", length(to_remove), " objects from the workspace.")
+  log_block("Cleaning workspace")
+  log_objects(to_remove, "Removed")
+  invisible(to_remove)
+}
+
 
 # ----------------------------------------------------------------------------------------------------------
 # Functions for main loop
@@ -1137,95 +1171,34 @@ check_population_consistency <- function() {
 
 # END StrFonctions
 
-# Créer un environnement local
-env <- new.env()
+# ------------------------------------------------------------------------------
+# What this file defines, for the log.
+#
+# The engine functions are what a module author calls; the rest is machinery.
+# This used to be worked out by re-sourcing this very file into a throwaway
+# environment through a temp file, which meant evaluating everything twice.
+# ls() on the environment that has just been populated says the same thing.
+# ------------------------------------------------------------------------------
 
-#message("✅ Functions loaded, see ", log_file, " for details.")
-message("✅ Functions loaded")
+local({
+  engine <- list(
+    "Read"          = c("gp", "gi", "gl", "gd", "gda"),
+    "Write"         = c("dt_set"),
+    "Equations"     = c("eq"),
+    "Tables"        = c("create_data_table", "table_register", "table_row", "table_has"),
+    "Dependencies"  = c("deps_reset", "deps_record"),
+    "Workspace"     = c("keep_add", "keep_snapshot", "keep_list", "clean_ws"),
+    "Loading"       = c("loadFill", "loadFillPol", "sourceSet")
+  )
 
-# Lire le contenu du fichier et extraire les lignes entre les balises BEGIN et END
-script_lines <- readLines(path_prep("1-custom-functions.r"))
-start_line <- grep("# BEGIN StrFonctions", script_lines)
-end_line <- grep("# END StrFonctions", script_lines)
+  defined <- ls(envir = .GlobalEnv)
+  defined <- defined[vapply(defined, function(n) is.function(get(n, envir = .GlobalEnv)), logical(1))]
 
-# Extraire le code entre ces lignes
-code_lines <- script_lines[(start_line + 1):(end_line - 1)]
+  log_block("Functions loaded")
+  for (group in names(engine)) log_objects(intersect(engine[[group]], defined), group)
+  log_objects(setdiff(defined, unlist(engine, use.names = FALSE)), "Helpers")
 
-# Écrire ce code dans un fichier temporaire
-temp_file <- tempfile()
-writeLines(code_lines, temp_file)
+  keep_add(defined)
+})
 
-# Sourcer le fichier temporaire dans l'environnement local
-source(temp_file, local = env)
-
-# Liste des objets dans l'environnement local
-functions_in_env <- ls(envir = env)
-
-# Filtrer pour obtenir uniquement les fonctions
-functions_in_env <- functions_in_env[sapply(functions_in_env, function(x) is.function( get(x, envir = env)))]
-
-toKeep0 <<- functions_in_env
-
-# Define groups of functions to be excluded
-excluded_functions <- list(
-                           "Get variables" = c("gd", "gi", "gp"),  # Group for model management functions related to "gd", "gi", "gp"
-                           "Assign variables" = c("iTo", "pTo", "To"),  # Group for other related functions: "iTo", "pTo", "To"
-                           "Write equations" = c("dep_check", "eq"),  # Group for "dep_check" and "eq"
-                           "Free memory" = c("clean_ws")  # Group for clean workspace function
-)
-
-# Initialize a vector to store custom functions (functions to be included)
-custom_functions <- functions_in_env
-
-# Exclude the functions defined in the excluded groups
-for (group in excluded_functions) {
-  custom_functions <- setdiff(custom_functions, group)
-}
-
-# Sort the remaining custom functions alphabetically
-custom_functions_sorted <- sort(custom_functions)
-
-# Message pour informer que les fonctions ont été chargées
-log_message("###############################")
-log_message("🌍 Functions Loaded")
-log_message("###############################")
-log_message("\n")
-
-
-# Préparer l'affichage des résultats dans le log
-log_message("###############################")
-log_message("👌 Custom Functions:")
-log_message("###############################")
-log_message(paste(custom_functions_sorted, collapse = "\n"))
-log_message("\n")
-
-# Afficher les fonctions des groupes exclues
-log_message("\n###############################")
-log_message("👌 Model Management Functions:")
-log_message("###############################")
-for (group_name in names(excluded_functions)) {
-  log_message(paste(group_name, ":"))
-  log_message(paste(excluded_functions[[group_name]], collapse = "\n"))
-  log_message("\n")
-}
-
-# Prepare the display of results
-#message("Custom Functions:")
-# Print out the list of custom functions
-#message(paste(custom_functions_sorted, collapse = "\n"))
-
-# Print out the functions in each group (model management)
-#message("\nModel Management Functions:")
-# Loop through each group in excluded_functions and print their functions
-#for (group_name in names(excluded_functions)) {
-# message(paste(group_name, ":"))
-#message(paste(excluded_functions[[group_name]], collapse = "\n"))
-#}
-
-# Nettoyer le fichier temporaire
-unlink(temp_file)
-
-rm(env)
-
-
-toKeep <- c(toKeep, toKeep0)
+message("Functions loaded")

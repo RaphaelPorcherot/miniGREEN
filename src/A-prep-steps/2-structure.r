@@ -433,95 +433,38 @@ template_industry_i <- array(0,
 
 ## END Structure
 
+# ------------------------------------------------------------------------------
+# What this file defines, for the log.
+#
+# `template_elements` is not just for the log: loadFill() matches an input file
+# against it to find the array it should be poured into. It used to be produced
+# by re-sourcing the BEGIN/END Dimensions section into a temp environment and
+# grepping it; the templates are in the global environment already, so ls() is
+# both simpler and impossible to get out of step with the file.
+# ------------------------------------------------------------------------------
 
-# Créer un environnement local
-env <- new.env()
+template_elements <- sort(grep("^template_", ls(envir = .GlobalEnv), value = TRUE))
 
-#message("✅ Structure defined, see ", log_file, " for details.")
-message("✅ Structure defined")
-# Lire le contenu du fichier et extraire les lignes entre les balises BEGIN et END
-script_lines <- readLines(path_prep("2-structure.r"))
-start_line <- grep("# BEGIN Structure", script_lines)
-end_line <- grep("# END Structure", script_lines)
+local({
+  dims <- c("industry", "cohort", "gender", "skill", "pop_group", "status",
+            "technology", "energy_source", "energy_use", "asset", "coicop",
+            "timeuse", "income_group", "wage_cat", "regions")
 
-# Extraire le code entre ces lignes
-code_lines <- script_lines[(start_line + 1):(end_line - 1)]
+  log_block("Structure loaded")
+  log_info("Periods:    ", startYear, "-", endYear, " (", timePeriods, " steps of dt = ", dt, ")")
+  log_info("Passes:     ", iter)
+  log_info("Capacity:   npar = ", npar, ", nvar = ", nvar, ", nlookup = ", nlookup)
+  log_info("Seed:       ", seed)
+  log_info("Region(s):  ", paste(regions, collapse = ", "))
+  log_objects(modules, "Modules")
+  log_objects(intersect(dims, ls(envir = .GlobalEnv)), "Dimensions")
+  log_objects(template_elements, "Templates")
 
-# Écrire ce code dans un fichier temporaire
-temp_file <- tempfile()
-writeLines(code_lines, temp_file)
+  states <- model_states[!is.na(model_states$r), ]
+  log_objects(states$r, "States translated")
+  log_objects(model_states$vensim[is.na(model_states$r)], "States not translated yet")
+})
 
-# Sourcer le fichier temporaire dans l'environnement local
-source(temp_file, local = env)
+keep_add(ls(envir = .GlobalEnv))
 
-# Liste des objets dans l'environnement local
-functions_in_env <- ls(envir = env)
-
-# Extraire et trier les éléments "template"
-template_elements <- functions_in_env[grep("template", functions_in_env)]
-template_elements <- sort(template_elements)
-
-log_message("###############################")
-log_message("🌍 Structural Elements Loaded")
-log_message("###############################")
-log_message("\n")
-log_message(paste("Maximum number of parameters per module: ", env$npar))
-log_message(paste("Maximum number of variables per module: ", env$nvar))
-log_message(paste("Number of periods: ", env$timePeriods))
-log_message(paste("Number of iterations: ", env$iter))
-log_message(paste("Modules: ", paste(env$modules, collapse = ", ")))
-log_message("Templates:")
-log_message(paste(template_elements, collapse = "\n"))
-log_message("\n")  # Ajouter une ligne vide pour séparer les sections dans le fichier de log
-
-
-# Définir les éléments à conserver
-toKeep1 <<- c("npar", "nvar", "timePeriods", "iter", "modules", template_elements)
-
-# Nettoyer le fichier temporaire et l'environnement
-unlink(temp_file)
-rm(env)
-
-# ────────────────────────────────────────────────────────────
-# 🌍 STEP 3 : DIMENSIONS + LOGGING
-# ────────────────────────────────────────────────────────────
-
-# Créer un nouvel environnement local pour les dimensions
-env <- new.env()
-
-# Lire le contenu du fichier et extraire les lignes entre les balises BEGIN et END
-script_lines <- readLines(path_prep("2-structure.r"))
-start_line <- grep("# BEGIN Dimensions", script_lines)
-end_line <- grep("# END Dimensions", script_lines)
-
-# Extraire le code entre ces lignes
-code_lines <- script_lines[(start_line + 1):(end_line - 1)]
-
-# Écrire ce code dans un fichier temporaire
-writeLines(code_lines, temp_file)
-
-# Sourcer le fichier temporaire dans l'environnement local
-source(temp_file, local = env)
-
-# Liste des objets dans l'environnement local
-objects_in_env <- ls(envir = env)
-objects_in_env <- sort(objects_in_env)
-
-log_message("###############################")
-log_message("🌍 Defined Dimensions")
-log_message("###############################")
-log_message("\n")
-log_message(paste(objects_in_env, collapse = "\n"))
-log_message("\n")  # Ajouter une ligne vide pour séparer les sections dans le fichier de log
-
-
-# Définir les éléments à conserver
-toKeep2 <<- objects_in_env
-
-# Nettoyer le fichier temporaire et l'environnement
-unlink(temp_file)
-rm(env)
-
-# Fusionner les éléments à conserver
-toKeep <- c(toKeep, toKeep1, toKeep2, "covidYears", "yearsCohort_c")
-
+message("Structure defined")

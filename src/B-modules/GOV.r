@@ -1,5 +1,3 @@
-module_name <- "GOV"
-
 # NOTES
 
 # BEGIN Fonctions ------------------------------------------------------------------------------------------------
@@ -327,10 +325,3 @@ socialSecurityContRateByEmployee <- function() {
 
 
 # END Fonctions ------------------------------------------------------------------------------------------------
-
-source(path_module("_0verbose"))
-# Store the modules functions in the objects to be retained when cleaning workspace
-toKeep <- c(toKeep, functions_in_env)
-
-
-
