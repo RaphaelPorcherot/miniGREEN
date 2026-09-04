@@ -33,10 +33,15 @@ computeAlternativeChangeLabourProductivity <- function() {
     # vector goes first or the names are lost.
     #
     # TODO(2026): the 2025 model floors the mean at zero, the 2026 model does
-    # not. This line still follows 2025, like the rest of the module. Drop the
-    # pmax() when TECH is retranslated against vensim_model_2026.txt — an
-    # alternative technology that lowers productivity is a legitimate draw, it
-    # simply will not be the one selected. See inconsistencies_new.md.
+    # not, and that removal is undocumented. Do not simply follow 2026 here —
+    # ask. The technology module is known to be giving the 2026 translator
+    # trouble, so the floor may have been dropped deliberately, or in passing.
+    # This line follows 2025, like the rest of the module.
+    #
+    # The economics, for whoever picks this up: an alternative technology that
+    # lowers productivity is a legitimate draw — it simply will not be the one
+    # selected. Flooring it at zero does not stop a bad alternative being
+    # modelled, it stops it being recognised as bad. See inconsistencies_new.md.
     mean <- pmax(gp("R_gLabProdMean_i"), 0)
     sd <- gp("R_gLabProdSd_i")
     min <- gp("R_gLabProdMin_i")

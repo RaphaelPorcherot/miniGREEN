@@ -509,11 +509,12 @@ keep_add(c("dev_or_run", ".message_log"))  # engine state, must survive clean_ws
 # STEP 4 — The model
 #============================================================================
 
-for (iterations in 1:iter){
-
-# ----------------------------------------
-    clear_eq_log()
-# ----------------------------------------
+# One period. eq_run_passes() calls the block below repeatedly until a pass
+# resolves nothing new; an equation that already succeeded is skipped. The
+# equations are grouped by module, in the order of the Vensim views, and that
+# order does not have to be a dependency order. See README.md 4.5.
+eq_new_period()
+eq_run_passes(max_passes = max_passes, body = function() {
 
 # VENSIM INITIAL()
 
@@ -708,13 +709,7 @@ for (iterations in 1:iter){
     # -----------------------------------------------------------------------
     # -----------------------------------------------------------------------
     
-    success <- print_eq_log()
-    
-    if (success) break  # 🚪 Sortir de la boucle si tout est bon    
-    
-    message(paste0("----------------------\n","After : ", iterations, " in ", iter, " iterations\n","----------------------"))
-
-}
+})
 
     # ~~~~~~~~ This should come after L else it will throw an error ~~~~~~~~
     check_population_consistency() # with beginning-of-period Pop_lvl

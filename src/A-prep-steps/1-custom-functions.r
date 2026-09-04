@@ -878,7 +878,75 @@ clean_ws <- function() {
 # Functions for main loop
 # ----------------------------------------------------------------------------------------------------------
 
-# to reset eq log ------------------------------------------------------------------------------------------
+# ==============================================================================
+# THE PASS LOOP
+# ==============================================================================
+#
+# eq() refuses to run an equation whose inputs are not available yet, so the
+# equations do not have to be in dependency order: the loop makes several
+# passes over them and each pass resolves whatever became computable.
+#
+# Two things keep that from being wasteful or silent:
+#
+#   - an equation that succeeded is not run again in the same period. Its value
+#     is already in the global environment for the equations downstream, and
+#     recomputing it would give the same answer, since nothing it reads has
+#     moved.
+#
+#   - the loop stops when a pass resolves nothing new, not after a fixed number
+#     of passes. The old `iter <- 3` was exactly enough for this model, with no
+#     margin: one equation added in the wrong order and it would never have been
+#     computed, with nothing but a line in a log to say so.
+#
+# This is not a topological sort. The mechanism and the freedom to order the
+# equations however you like are unchanged.
+
+.eq <- new.env(parent = emptyenv())
+.eq$done <- new.env(parent = emptyenv())   # equations already computed this period
+.eq$mark <- 0L                             # how many were done when the pass began
+
+## Start a period: forget what was computed in the previous one.
+eq_new_period <- function() {
+  .eq$done <- new.env(parent = emptyenv())
+  .eq$mark <- 0L
+  invisible(NULL)
+}
+
+## Has this equation already been computed in the current period?
+eq_is_done <- function(name) !is.null(get0(name, envir = .eq$done))
+eq_mark_done <- function(name) assign(name, TRUE, envir = .eq$done)
+eq_done_count <- function() length(ls(.eq$done))
+
+## Run the passes until nothing new resolves.
+##
+## `body` is a function that calls every equation once, in whatever order the
+## modules are written in. It is called repeatedly.
+eq_run_passes <- function(body, max_passes = getOption("rewind.max_passes", 50L)) {
+  for (pass in seq_len(max_passes)) {
+    clear_eq_log()
+    .eq$mark <- eq_done_count()
+
+    body()
+
+    if (print_eq_log()) return(invisible(pass))          # nothing failed
+
+    if (eq_done_count() == .eq$mark) {                   # a pass changed nothing
+      stuck <- .message_log$failure
+      log_error("Stalled after ", pass, " passes. Unresolved:")
+      for (m in stuck) log_error("  ", m)
+      stop("The model stalled after ", pass, " passes: a pass resolved nothing ",
+           "new and ", length(stuck), " equation(s) are still waiting on inputs ",
+           "that never arrive.\nSee ", log_file, " for the list.\n",
+           "Either an input is genuinely missing, or two equations depend on ",
+           "each other.")
+    }
+    log_info("Pass ", pass, ": ", eq_done_count(), " equations resolved, ",
+             length(.message_log$failure), " still waiting")
+  }
+  stop("Still not settled after ", max_passes, " passes.")
+}
+
+# to reset eq log ------------------------------------------------------------
 clear_eq_log <- function() {
   .message_log <<- list(
                         success = character(), 
@@ -886,20 +954,14 @@ clear_eq_log <- function() {
   )
 }
 
-# to print eq log ------------------------------------------------------------------------------------------
+# to print eq log ------------------------------------------------------------
 print_eq_log <- function() {
   for (msg in .message_log$failure) message(msg)
-
   all_ok <- length(.message_log$failure) == 0
-
-  if (all_ok) {
-    message("✅ Run with success – all variables have been computed ✅")
-  }
-
-  .message_log <<- list(success = character(), failure = character())
-
+  if (all_ok) message("Run with success - all variables have been computed")
   return(all_ok)
 }
+
 
 # ----------------------------------------------------------------------------------------------------------
 # The eq() function and its auxiliaries
@@ -1022,6 +1084,15 @@ eq <- function(expr_block, dep = NULL) {
   calling_func <- sys.call(-1)
   func_name <- as.character(calling_func)[1]
 
+  # Already computed in this period? Then there is nothing to do: the value is
+  # in the global environment for the equations downstream, and nothing this
+  # equation reads has moved since. Only in run mode — in dev mode you are
+  # calling functions from the console and expect them to run.
+  if (exists("dev_or_run", envir = .GlobalEnv) && dev_or_run == "run" &&
+      eq_is_done(func_name)) {
+    return(invisible(NULL))
+  }
+
   # Try to retrieve the module name from the calling function's "module" attribute
   module_name <- NULL
   if (exists(func_name, envir = .GlobalEnv)) {
@@ -1071,6 +1142,8 @@ eq <- function(expr_block, dep = NULL) {
   # If all dependencies are available, evaluate the expression block
   if (length(missing_deps) == 0) {
     result <- eval(expr, envir = parent.frame())
+
+    eq_mark_done(func_name)
 
     # Log success message
     .message_log$success <<- c(.message_log$success,

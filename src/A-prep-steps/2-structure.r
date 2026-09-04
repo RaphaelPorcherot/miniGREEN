@@ -8,8 +8,11 @@ npar <- 250
 nvar <- 100
 nlookup <- 20
 
-# nb iterations to avoid having to put each equations in the right order
-iter <- 3
+# Safety cap on the number of passes the equation loop may make. It is not the
+# number of passes taken: eq_run_passes() stops as soon as a pass resolves
+# nothing new, and errors if that happens while equations are still waiting.
+# The model settles in 3 passes today. See README.md 4.5.
+max_passes <- 50
 # number of periods
 startYear <- 2010
 timePeriods <- 60
@@ -399,7 +402,7 @@ local({
 
   log_block("Structure loaded")
   log_info("Periods:    ", startYear, "-", endYear, " (", timePeriods, " steps of dt = ", dt, ")")
-  log_info("Passes:     ", iter)
+  log_info("Max passes: ", max_passes)
   log_info("Capacity:   npar = ", npar, ", nvar = ", nvar, ", nlookup = ", nlookup)
   log_info("Seed:       ", seed)
   log_info("Region(s):  ", paste(regions, collapse = ", "))

@@ -178,20 +178,22 @@ mean <- pmax(gp("R_gLabProdMean_i"), 0)     # per industry, all of them
 rtruncnorm(n = 1, a = min + sd, b = max + sd, mean = mean + sd, sd = sd)
 ```
 
-The `TODO(2026)` marker is the convention for a line that is a faithful 2025
-translation and will change when the module is retranslated. `grep -rn
-"TODO(2026)" src/` finds them all.
+The `TODO(2026)` marker is the convention for a line where the 2025 and 2026
+models differ and the module still follows 2025. It marks a decision to take,
+not one already taken: sometimes 2026 is the improvement and sometimes it is an
+undocumented change worth querying. `grep -rn "TODO(2026)" src/` finds them all.
 
 * **The collapse was a translation bug.** Vensim's `max()` is elementwise here;
   R's is a reduction. `pmax` is the R equivalent. Both the R suffix `_i` and the
   Vensim `[ind]` say per-industry, and no reading makes one industry's mean
   drive the other eighteen.
-* **The floor stays, for now.** It is in the 2025 source and was translated
-  correctly in intent, so it is not a mistake — the 2026 model simply dropped
-  it. The module is still a translation of 2025 throughout, and half-migrating
-  one line to 2026 would make it internally inconsistent. It is therefore kept
-  as `pmax(gp("R_gLabProdMean_i"), 0)` and marked `TODO(2026)` in the code, to
-  be dropped when TECH is retranslated.
+* **The floor stays, and 2026 does not settle it.** It is in the 2025 source
+  and was translated correctly in intent, so it is not a mistake. The 2026 model
+  dropped it — but that removal is **undocumented**, and the technology module is
+  known to be giving the 2026 translator trouble, so it may be a considered
+  choice or it may be collateral. It is kept as
+  `pmax(gp("R_gLabProdMean_i"), 0)` and marked `TODO(2026)`: a question to put to
+  the 2026 translator, not a change to apply.
 
   The economics point the same way: an alternative technology that *lowers*
   productivity is a legitimate draw — it simply will not be the one selected.

@@ -194,11 +194,15 @@ deleted — the policies may come back.
 **All paths go through `src/paths.r`.** Never write a literal path in a module.
 The previous layout (`notebooks/r-nb/...`) is gone.
 
-**`TODO(2026)` marks a line that faithfully translates the 2025 model and will
-change when its module is retranslated against `vensim_model_2026.txt`.** The
-modules are 2025 translations throughout; migrating one line at a time would
-make them internally inconsistent, so the differences are marked rather than
-applied. `grep -rn "TODO(2026)" src/` lists them.
+**`TODO(2026)` marks a line where the 2025 and the 2026 model differ and the
+code still follows 2025.** The modules are 2025 translations throughout;
+migrating one line at a time would make them internally inconsistent, so the
+differences are marked rather than applied.
+
+The marker records a decision *to take*, not one already taken. Following 2026
+is usually right, but not always: some of its changes are undocumented, and an
+undocumented simplification is a question for its author, not an authority.
+`grep -rn "TODO(2026)" src/` lists them.
 
 **Files and directories are `kebab-case`** (`A-prep-steps/`, `0-log-config.r`,
 `long-comments.qmd`). The `camelCase` rule of §5 applies to R objects — variables
@@ -339,29 +343,36 @@ resolves whatever became computable. Equations are grouped by module in
 `run_model.r`, in commented blocks, so that the reading order reproduces the
 *views* of the Vensim model. That grouping is intentional and should be kept.
 
-```
-for each period t:
-    reset the per-period registry
-    repeat:
-        POLICY block
-        GOV block
-        L block
-        ... one block per module, in a readable order ...
-    until no pass resolves anything new
-    update the states:  state <- state + net_flow * dt
-    check the invariants
+```r
+eq_new_period()                 # forget what the previous period computed
+eq_run_passes(function() {
+    # POLICY block
+    # GOV block
+    # L block
+    # ... one block per module, in a readable order ...
+})
 ```
 
-**[planned]** Two changes to this loop:
+`eq_run_passes()` calls that function repeatedly and stops when a pass resolves
+nothing new. Two properties make it safe:
 
-* **Memoisation.** An equation that succeeded in one pass is not recomputed in
-  the next. The value is already in the global environment for downstream
-  equations to use. A `dev` mode escape keeps console re-runs working.
-* **Adaptive passes.** `iter <- 3` is replaced by "keep going while a pass
-  resolves something new". This is *not* a topological sort — the mechanism and
-  your freedom to order equations as you like are unchanged. It only means that
-  if four passes are needed you get four, and that an equation which can never
-  be resolved becomes a named error instead of a line in a log file.
+* **An equation that succeeded is not run again in the same period.** Its value
+  is already in the global environment for the equations downstream, and nothing
+  it reads has moved. On this model that is 71 equations computed once instead
+  of 213 calls over three passes — **67% of the work avoided**. `dev` mode
+  bypasses it, so console re-runs still work.
+
+* **A pass that resolves nothing while equations are still waiting is an
+  error**, naming them, not a silent exit. The old `iter <- 3` was exactly
+  enough for this model, with no margin: one equation added in the wrong order
+  and it would never have been computed, with nothing but a line in a log to say
+  so.
+
+`max_passes` (in `2-structure.r`, default 50) is only a safety cap on runaway
+loops. It is not the number of passes taken — the model settles in three.
+
+This is **not** a topological sort. The mechanism and the freedom to order
+equations however you like are unchanged.
 
 ---
 
