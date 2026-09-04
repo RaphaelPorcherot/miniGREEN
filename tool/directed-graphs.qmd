@@ -25,7 +25,7 @@ suppressPackageStartupMessages(
         
     }
 )
-output_path <- here("notebooks", "r-nb", "outputs")
+output_path <- DIR_OUTPUT
 load(file.path(output_path,"model_only.RData"))
      
 ```
@@ -109,7 +109,7 @@ edges_df <- edges_df %>%
 #| jupyter: {source_hidden: true}
 # Export edge and node df to app folder 
 
-app_path <- here("notebooks", "r-nb", "D-apps", "graph")
+app_path <- file.path(DIR_APP, "graph")
 graph_obj <- list()
 graph_obj[["edges"]] <- edges_df
 graph_obj[["nodes"]] <- nodes_df
@@ -121,7 +121,7 @@ save(graph_obj, file = file.path(app_path, "graph_obj.RData"))
 ```{r}
 # Run app 
 
-graph_app_path <- here("notebooks", "r-nb", "D-apps", "graph")
+graph_app_path <- file.path(DIR_APP, "graph")
 runApp(paste0(graph_app_path, "/app.r")) 
 ```
 

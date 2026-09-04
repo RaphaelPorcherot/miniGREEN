@@ -1,4 +1,4 @@
-log_path <- here("notebooks", "r-nb", "logs")
+log_path <- DIR_LOG
 
 dir.create(log_path, showWarnings = FALSE)
 
@@ -41,7 +41,7 @@ message("✅ Logging initialised")
 
 # Lire le contenu du fichier et extraire les lignes entre les balises BEGIN et END
 
-script_lines <- readLines(here("notebooks", "r-nb", "A-prepSteps", "0-logConfig.R"))
+script_lines <- readLines(path_prep("0-log-config.r"))
 start_line <- grep("# BEGIN", script_lines)
 end_line <- grep("# END", script_lines)
 
@@ -72,7 +72,7 @@ toKeep <- c(toKeep, toKeep0)
 #library(logger)
 #
 ## 📄 Fichier de log
-#log_path <- here::here("notebooks", "r-nb", "logs")
+#log_path <- here::DIR_LOG
 #dir.create(log_path, showWarnings = FALSE, recursive = TRUE)
 #log_file <- file.path(log_path, paste0("model_log_", Sys.Date(), ".log"))
 #
@@ -138,7 +138,7 @@ toKeep <- c(toKeep, toKeep0)
 #2. Dans ton notebook ou script R :
 #
 #source(here::here("R", "log_utils.R"))
-#init_logger(log_dir = here::here("notebooks", "r-nb", "logs"), prefix = "model_log")
+#init_logger(log_dir = here::DIR_LOG, prefix = "model_log")
 #
 #log_info("🚀 Script lancé")
 #log_block("Prétraitement", "step_1_cleaning")
@@ -262,7 +262,7 @@ toKeep <- c(toKeep, toKeep0)
 #
 #source(here::here("R", "log_utils.R"))
 #init_logger(
-#  log_dir = here::here("notebooks", "r-nb", "logs"),
+#  log_dir = here::DIR_LOG,
 #  prefix = "REWIND",
 #  level = "INFO",             # ou "WARN", "ERROR"
 #  log_to_console = TRUE       # ou FALSE si tu veux silence radio
@@ -273,7 +273,7 @@ toKeep <- c(toKeep, toKeep0)
 #log_warn("Colonne 'age' contient 15% de NA")
 #log_error("Impossible de joindre la table des paramètres")
 #
-#source(here::here("notebooks", "r-nb", "A-prepSteps", "0-dataPrep.R"))
+#source(here::path_prep("0-dataPrep.r"))
 #log_info("Module de prétraitement terminé ✅")
 #```
 #

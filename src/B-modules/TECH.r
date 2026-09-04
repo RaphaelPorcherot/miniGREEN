@@ -199,6 +199,6 @@ labourProductivity_lag2 <- function() {
 
 # END Fonctions ------------------------------------------------------------------------------------------------
 
-source(here("notebooks", "r-nb", "B-modules", "_0verbose.r"))
+source(path_module("_0verbose"))
 # Store the modules functions in the objects to be retained when cleaning workspace
 toKeep <- c(toKeep, functions_in_env)

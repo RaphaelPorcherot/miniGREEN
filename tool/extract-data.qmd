@@ -50,7 +50,7 @@ source_between_markers <- function(file_path, start_marker, end_marker) {
 }
 
 source_between_markers(
-  file_path = here::here("notebooks", "r-nb", "A-prepSteps", "2-structure.r"),
+  file_path = here::path_prep("2-structure.r"),
   start_marker = "## BEGIN Structure",
   end_marker = "## END Structure"
 )
@@ -455,7 +455,7 @@ parse_vensim_data <- function(file_path, dim_names) {
 # --------------------------------------------------------------------------------------------------
 
 export_to_input_folder <- function(res, varname) {
-  outputfolder <- here::here("notebooks", "r-nb", "inputs", "economy/")
+  outputfolder <- here::path_input("economy")
 
   if (!dir.exists(outputfolder)) {
     dir.create(outputfolder, recursive = TRUE)
@@ -552,7 +552,7 @@ dim_names <- c("Industry", "Industry")
 #varname <- "_coeffWageDispersion_isg"
 #dim_names <- c("Industry", "Skill", "Gender")  
 
-file_path <- here("notebooks", "r-nb", "C-tools", "dataToConvert", paste0(varname, ".txt"))
+file_path <- file.path(DIR_TOOL, "data-to-convert", paste0(varname, ".txt"))
 ```
 
 ```{r}

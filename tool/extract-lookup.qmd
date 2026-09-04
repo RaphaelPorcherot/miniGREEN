@@ -46,7 +46,7 @@ source_between_markers <- function(file_path, start_marker, end_marker) {
 }
 
 source_between_markers(
-  file_path = here::here("notebooks", "r-nb", "A-prepSteps", "2-structure.r"),
+  file_path = here::path_prep("2-structure.r"),
   start_marker = "## BEGIN Structure",
   end_marker = "## END Structure"
 )
@@ -303,7 +303,7 @@ interactive_clean_modalities <- function(res, dim_names) {
 
 export_lookup_res <- function(res, varname) {
   # Créer le dossier de sortie si nécessaire
-  outputfolder <- here::here("notebooks", "r-nb", "inputs", "lookup/")
+  outputfolder <- path_input("lookup")
   if (!dir.exists(outputfolder)) {
     dir.create(outputfolder, recursive = TRUE)
   }
@@ -575,7 +575,7 @@ for (dim_name in names(official_modalities)) {
 ```{r}
 #| jupyter: {source_hidden: true}
 # Write csv to inputs/folder
-folder_path <- here("notebooks/r-nb/inputs/lookup/")
+folder_path <- path_input("lookup")
 
 ## as CSV long 
 write.csv(res$tidy_data, 

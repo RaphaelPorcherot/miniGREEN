@@ -4,7 +4,7 @@ message(paste("✅ ", module_name, "loaded."))
 
 log_block(paste0("", module_name))
 
-script_path <- here("notebooks", "r-nb", "B-modules", paste0(module_name,".r"))
+script_path <- path_module(module_name)
 script_lines <- readLines(script_path)
 start_line <- grep("# BEGIN Fonctions", script_lines)
 end_line <- grep("# END Fonctions", script_lines)

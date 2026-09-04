@@ -167,8 +167,9 @@ deleted — the policies may come back.
 ├── README.md          this file
 ├── vensim_model_2026.txt  the source of truth for the translation
 ├── src/
-│   ├── paths.R            every path in the project resolves through here
+│   ├── paths.r            every path in the project resolves through here
 │   ├── run_model.r        the orchestrator: loads, then runs the time loop
+│   ├── snapshot.r         take / check a reference snapshot (§9.1)
 │   ├── A-prep-steps/
 │   │   ├── 0-log-config.r      logging
 │   │   ├── 1-custom-functions.r  engine: eq(), the d layer, loaders
@@ -189,7 +190,7 @@ deleted — the policies may come back.
 └── docs/EUROGREEN/        Vensim sources and calibration data — see §11.3
 ```
 
-**All paths go through `src/paths.R`.** Never write a literal path in a module.
+**All paths go through `src/paths.r`.** Never write a literal path in a module.
 The previous layout (`notebooks/r-nb/...`) is gone.
 
 **Files and directories are `kebab-case`** (`A-prep-steps/`, `0-log-config.r`,
@@ -711,7 +712,16 @@ Two substitutes are used instead.
 
 Every refactoring step must leave `d` bit-identical to the snapshot taken before
 it. This does not validate the model — it guarantees that infrastructure work
-changes no results. Snapshots live in `output/_ref_*.rds`.
+changes no results. Snapshots live in `output/_ref_*.rds` (git-ignored).
+
+```bash
+Rscript src/snapshot.r take  phase0   # run the model, save d as the reference
+Rscript src/snapshot.r check phase0   # run it again, compare against that
+```
+
+`check` exits 0 when nothing moved. When something did, it names what: variables
+that stopped being computed, variables that appeared, and variables whose value
+changed.
 
 ### 9.2 The model's own invariants
 
@@ -759,9 +769,10 @@ unless that lag is wanted deliberately.
 
 **What is being done now, and only this:**
 
-1. A `Region` column on `d`, `init` and `dp`, with a single value `"IT"`. It
-   costs nothing today; retrofitting it later would mean touching every read and
-   write.
+1. A `Region` column on `d`, `init` and `dp`, with a single value `"IT"`, and a
+   matching `region` column on every input CSV (§11.3). It costs nothing today;
+   retrofitting it later would mean touching every read, every write and every
+   input file.
 2. `make_template()` (§5.5), so that adding a region index later is one change
    in one function rather than twenty declarations plus every loader.
 
@@ -840,6 +851,20 @@ of the data rather than a queryable object.
 > The rule when translating a new variable: look in `input/` first. Only if
 > nothing is there do you go to the spreadsheet, and then the extraction goes
 > through `tool/` and the manifest (§11.1) so that it is recorded.
+
+**An input that is missing gets added — it is never read inline.** When a
+variable being translated has no CSV under `input/`, the value does not go into
+the equation as a literal, and it does not get read from the spreadsheet at run
+time. It is extracted, shaped against the template that matches its indices
+(§5.5), written as a CSV in the right module folder, and loaded by `loadFill()`
+like everything else. An input that lives anywhere other than `input/` is
+invisible to the calibration entry point (§8 of the backlog) and to anyone
+reading the model.
+
+Every input CSV carries a **`region` column**, holding `IT` for now — the
+existing ones and the new ones alike. It costs nothing today and means the input
+format does not change when regions arrive: only the number of rows does. See
+§10.
 
 ---
 

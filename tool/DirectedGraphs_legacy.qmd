@@ -26,7 +26,7 @@ suppressPackageStartupMessages(
     }
 )
 
-output_path <- here("notebooks", "r-nb", "outputs")
+output_path <- DIR_OUTPUT
 
 load(paste0(output_path, "/model_only.RData"))
 ```
@@ -193,7 +193,7 @@ display <- htmltools::tagList(
 graphs[["main"]] <- graph
 displays[["main"]] <-  display
 
-#output_path <- here::here("notebooks", "r-nb", "outputs")
+#output_path <- here::DIR_OUTPUT
 #graph_path <- here(output_path, "main_graph")
 #htmltools::save_html(display, paste0(graph_path, ".html"))
 #saveWidget(main_display, paste0(main_graph_path, ".html"), selfcontained=TRUE)
@@ -267,22 +267,22 @@ for(mod in mods){
     graphs[[mod]] <- graph    
     displays[[mod]] <-  display
     
-#    output_path <- here::here("notebooks", "r-nb", "outputs")
+#    output_path <- here::DIR_OUTPUT
  #   graph_path <- here(output_path, mod)
     #htmltools::save_html(display, paste0(graph_path, ".html"))
 #saveWidget(display, paste0(graph_path, ".html"), selfcontained=TRUE)
 }
 
 # Save environment to write documentation 
-file_path <- here("notebooks", "r-nb", "outputs", "model_graph")
+file_path <- path_output("model_graph")
 save.image(file = paste0(file_path, ".RData"))
 ```
 
 ```{r}
 #| jupyter: {source_hidden: true}
 # Run graph.r ShinyApp
-#graph_app_path <- here("notebooks", "r-nb", "outputs", "graph")
-graph_app_path <- here("notebooks", "r-nb", "D-apps", "graph")
+#graph_app_path <- path_output("graph")
+graph_app_path <- file.path(DIR_APP, "graph")
 runApp(paste0(graph_app_path, "/app.r")) 
 
 # Should also work 

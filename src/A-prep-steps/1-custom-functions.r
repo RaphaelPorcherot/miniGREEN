@@ -392,11 +392,11 @@ loadFill <- function(to_load, input_dir = NULL) {
 
 
   # --- Loading scalars ---
-  scalars_path <- file.path(input_dir, "_scalars.csv")
+  scalars_path <- file.path(input_dir, "scalars.csv")
 
   if (file.exists(scalars_path) && to_load != "lookup") {
     scalars <- read.csv(scalars_path, header = TRUE)
-    if (!all(c("name", "value", "table") %in% names(scalars))) stop("Non-standard columns name in _scalars.csv/. Expected order : name, value, module, type, units, description ")
+    if (!all(c("name", "value", "table") %in% names(scalars))) stop("Non-standard column names in scalars.csv. Expected: name, value, module, table, units, description")
 
     scalars_sub <- scalars[scalars$table == to_load, ]
 
@@ -815,7 +815,7 @@ gda <- function(var) {
 # Fonction de checkpoint mémoire ------------------------------------------------------------------------------
 
 memory_checkpoint <- function(step_name = "") {
-  mem <- mem_used()
+  mem <- lobstr::mem_used()
   mem_mb <- round(as.numeric(mem) / (1024^2), 2)
   cat(sprintf("[%s] Mémoire utilisée : %.2f Mo\n", step_name, mem_mb))
 }
@@ -1147,7 +1147,7 @@ env <- new.env()
 message("✅ Functions loaded")
 
 # Lire le contenu du fichier et extraire les lignes entre les balises BEGIN et END
-script_lines <- readLines(here("notebooks", "r-nb", "A-prepSteps","1-customFunctions.R"))
+script_lines <- readLines(path_prep("1-custom-functions.r"))
 start_line <- grep("# BEGIN StrFonctions", script_lines)
 end_line <- grep("# END StrFonctions", script_lines)
 

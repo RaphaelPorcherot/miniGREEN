@@ -362,7 +362,7 @@ env <- new.env()
 #message("✅ Structure defined, see ", log_file, " for details.")
 message("✅ Structure defined")
 # Lire le contenu du fichier et extraire les lignes entre les balises BEGIN et END
-script_lines <- readLines(here("notebooks", "r-nb", "A-prepSteps","2-structure.R"))
+script_lines <- readLines(path_prep("2-structure.r"))
 start_line <- grep("# BEGIN Structure", script_lines)
 end_line <- grep("# END Structure", script_lines)
 
@@ -412,7 +412,7 @@ rm(env)
 env <- new.env()
 
 # Lire le contenu du fichier et extraire les lignes entre les balises BEGIN et END
-script_lines <- readLines(here("notebooks", "r-nb", "A-prepSteps","2-structure.R"))
+script_lines <- readLines(path_prep("2-structure.r"))
 start_line <- grep("# BEGIN Dimensions", script_lines)
 end_line <- grep("# END Dimensions", script_lines)
 
