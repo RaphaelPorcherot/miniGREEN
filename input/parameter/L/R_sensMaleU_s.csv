@@ -1,0 +1,6 @@
+description,MaleShareSensibilityToUnemployment,value
+"sensitivity of the share of male employment to the growth rate the ratio of male and female employment in each skill",child,0
+,low,0.08  
+,medium,0.035  
+,high,0.075
+,cap,0

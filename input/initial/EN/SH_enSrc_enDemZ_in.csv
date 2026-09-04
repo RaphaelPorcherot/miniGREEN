@@ -1,0 +1,20 @@
+"description","industry","solid","liquid","gas","biomass","renew"
+"Dmnl ~share of energy source by intermediate energy product demand NOTE: elect has no emissions NOTE: these share are already calibrated to only account for emission relevant  energy, SO THEY MIGHT BE SMALLER THAN ACTUAL SOURCE FOR SOLID, LIQUID AND  GAS GET DIRECT CONSTANTS('environment.xlsx', 'emission', 'B5') |","agri",0,0.784708,0.0480781,0.0408346,0.12638
+"","mining",0,0.274504,0.500787,0.00355743,0.221152
+"","manufacturing",0.162591,0.23951,0.328383,0.0133656,0.25615
+"","petroleum",0.838435,0.143307,0.00330834,7.30423e-06,0.0149422
+"","electricity",0.143841,0.112169,0.528803,0.0313422,0.183845
+"","water",0.00106093,0.183439,0.573133,0.0201837,0.222183
+"","construction",4.45713e-06,0.917071,0.00873979,0.0249293,0.0492557
+"","trade",0.369007,0.271912,0.165185,0.010222,0.183674
+"","transport",0,0.772795,0.152318,0.014126,0.060761
+"","hospitality",0,0.0619844,0.601597,0.00211828,0.3343
+"","ict",0,0.128323,0.353225,0.00643835,0.512013
+"","finance",0,0.123957,0.434817,0.00568814,0.435538
+"","realestate",0,0.234044,0.639894,0.0112882,0.114774
+"","profserv",0,0.213193,0.392545,0.00904207,0.385219
+"","public",0,0.189217,0.392395,0.00344893,0.41494
+"","education",0,0.244814,0.395779,0.0134092,0.345997
+"","health",0,0.0330594,0.727517,0.00180772,0.237616
+"","entertainment",0,0.123731,0.585623,0.00661111,0.284035
+"","otherserv",0,0.124544,0.421698,0.0065821,0.447176

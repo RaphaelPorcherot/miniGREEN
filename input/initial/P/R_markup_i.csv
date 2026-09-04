@@ -1,0 +1,20 @@
+description,industry,value 
+"GET DIRECT CONSTANTS('economy.xlsx', 'prices', 'B4')",agri,0.61
+,mining,0.61
+,manufacturing,0.246
+,petroleum,0.06
+,electricity,0.13
+,water,0.17
+,construction,0.32
+,trade,0.63666667
+,transport,0.7225
+,hospitality,0.4
+,ict,0.77
+,finance,0.74
+,realestate,0.61
+,profserv,1.405
+,public,0
+,education,0
+,health,0
+,entertainment,0.9
+,otherserv,0.9

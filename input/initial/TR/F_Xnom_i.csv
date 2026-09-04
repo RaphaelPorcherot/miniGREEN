@@ -1,0 +1,20 @@
+"description","Industry","value"
+"Euro ~GET DIRECT CONSTANTS('economy.xlsx', 'internationaltrade', 'B24') |","agri",5138720000
+"","mining",907531000
+"","manufacturing",2.93e+11
+"","petroleum",11907800000
+"","electricity",696594000
+"","water",1051640000
+"","construction",894253000
+"","trade",16011100000
+"","transport",14435800000
+"","hospitality",44533400
+"","ict",9472520000
+"","finance",4414900000
+"","realestate",1506870000
+"","profserv",14137500000
+"","public",99401900
+"","education",63277600
+"","health",933172000
+"","entertainment",536647000
+"","otherserv",380863000

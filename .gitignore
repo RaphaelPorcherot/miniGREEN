@@ -1,0 +1,30 @@
+# R
+.Rhistory
+.RData
+.Rapp.history
+.Ruserdata
+*.Rproj.user
+
+# renv : on versionne renv.lock et renv/activate.R, pas la librairie
+renv/library/
+renv/local/
+renv/cellar/
+renv/lock/
+renv/python/
+renv/sandbox/
+renv/staging/
+
+# Sorties du modèle (régénérables)
+output/*.RData
+output/*.rds
+log/*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Éditeurs
+.vscode/
+.idea/
+*~
+*.swp

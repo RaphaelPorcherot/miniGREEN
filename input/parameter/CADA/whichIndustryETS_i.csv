@@ -1,0 +1,20 @@
+description,industry,value 
+"1 = the industry participates to the EU-ETS and does not pay the carbon tax",agri,0
+,mining,1
+,manufacturing,0
+,petroleum,1
+,electricity,1
+,water,0
+,construction,0
+,trade,0
+,transport,0
+,hospitality,0
+,ict,0
+,finance,0
+,realestate,0
+,profserv,0
+,public,0
+,education,0
+,health,0
+,entertainment,0
+,otherserv,0

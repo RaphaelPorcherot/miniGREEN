@@ -1,0 +1,20 @@
+description,industry,value
+"Initial demand for investments, adjsted for total GFCF supply, dsata from OECD \ # dataset 8A capital formation by activity. # GET DIRECT CONSTANTS('economy.xlsx', 'investments' , 'C7')",agri,8091900000
+,mining,2497290000
+,manufacturing,52443300000
+,petroleum,2639820000
+,electricity,10665400000
+,water,3608990000
+,construction,7784740000
+,trade,16930600000
+,transport,22217200000
+,hospitality,6390400000
+,ict,14312400000
+,finance,5373020000
+,realestate,96761500000
+,profserv,20556100000
+,public,27439900000
+,education,2025760000
+,health,9376970000
+,entertainment,3265120000
+,otherserv,1843930000

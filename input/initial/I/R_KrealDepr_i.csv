@@ -1,0 +1,20 @@
+description,industry,value
+"GET DIRECT CONSTANTS( 'economy.xlsx', 'investments', 'C4')",agri,0.04932
+,mining,0.05881
+,manufacturing,0.09884
+,petroleum,0.05691
+,electricity,0.0423
+,water,0.0423
+,construction,0.08677
+,trade,0.08416
+,transport,0.04737
+,hospitality,0.04942
+,ict,0.1317
+,finance,0.06872
+,realestate,0.01288
+,profserv,0.109
+,public,0.04952
+,education,0.05445
+,health,0.0655
+,entertainment,0.09301
+,otherserv,0.08597

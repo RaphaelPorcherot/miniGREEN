@@ -1,0 +1,228 @@
+---
+jupyter: python3
+---
+
+This file is to keep track of all comments made by the Pisa team when they exceed a reasonable lenght
+
+# O_techFrontLambda_i
+
+##  Current 
+
+```
+techn frontier lambda i[ind]=
+	lambda delay i[ind]+(lambda delay i[ind]-lambda delay2 i[ind])
+```
+
+
+## Previous 
+
+
+```
+techn frontier lambda i[ind]=
+	lambda delay i[ind]+(lambda delay i[ind]-lambda delay2 i[ind])
+	~	Goods/People/Hours
+	~	IF_THEN_ELSE( :NOT: T_delay_i[ind]=UFC_T_delay_iv[ind,T1] , 
+		
+		ZIDZ(((lambda_delay_i[ind]*K_delay_i[ind])-(lambda_delay2_i[ind]*(1-depreciation_rate\
+		s_i[ind])*K_delay2_i[ind])),GFCF_real_delay_i[ind] )
+		
+		, techn_frontier_lambda_delay_i[ind] )
+	|
+```
+
+Which is why there is no longer any `techn frontier lambda delay i` or `techn frontier a delay ii`
+
+# GWB gis
+
+## Current
+
+    GWB gis[gender,ind,skill]=
+        IF THEN ELSE(
+        Time <S Time Policy start,
+        (max(wage min[gender,ind,skill],wage gis[gender,ind,skill])*hours i[ind]*L gis[gender\
+            ,ind,skill])/(People 1*Hours 1),
+        
+        (max
+        (wage min[gender,ind,skill],wage gis[gender,ind,skill])
+        *hours i[ind]*L gis[gender,ind,skill])/(People 1*Hours 1)
+        )
+
+## Previous
+
+    previous formula (changed 11/11/22)
+            (max(wage min[gender,ind,skill],wage gis[gender,ind,skill])*hours i[ind]*L \
+            gis[gender,ind,skill])/(People 1*Hours 1)
+        |
+
+# GUB gs
+
+## Current
+
+
+    GUB gs[gender,skill]=
+        max(0* euro 1,ub coverage ratio*ub wage ratio*ZIDZ(GWB gs[gender,skill],L gs[gender,\
+            skill])*L u gs[gender,skill])
+        ~   Euro
+        ~   total gross unemployment benefits paid by skill and gender
+
+## Previous
+
+            IF_THEN_ELSE(Time<S_Time_Policy_start,
+                         \
+            max(0,ub_coverage_ratio*ub_wage_ratio*(GWB_gs[gender,skill]/L_gs[gender,ski\
+            ll])*L_u_gs[gender,skill]),
+                         \
+            (1-Act_BI)*max(0,ub_coverage_ratio*ub_wage_ratio*(GWB_gs[gender,skill]/L_gs\
+            [gender,skill])*L_u_gs[gender,skill])
+                         )
+        |
+
+# in wage gis
+
+## Current
+
+      in wage gis[gender,ind,skill]=
+    IF THEN ELSE(Time=S Time Policy start,(min wage average change gis[gender,ind,skill]\
+        *(Coefficient wage dispersion[gender
+    ,ind,skill]*wage delay gis[gender,ind,skill]))+wage gis[gender,ind,skill]*(omega lambda\
+        [skill]*g lamba i[ind]+omega price*inflation
+    + omega employment[skill]*g L gis[gender,ind,skill])
+    ,wage gis[gender,ind,skill]*(omega lambda[skill]*g lamba i[ind]+omega price*inflation\
+        + omega employment[skill]*g L gis[gender,ind,skill
+    ]))
+
+    +IF THEN ELSE(Time <S Time Policy start,0* People 1 ,Act WTR wage*delta wage WTR[gender\
+        ,ind,skill])
+    +IF THEN ELSE(Time=S Time Policy start,Act maximum wage*(max wage average change gis\
+        [gender,ind,skill]*(Coefficient wage dispersion
+    [gender,ind,skill]*wage delay gis[gender,ind,skill])),0)
+    ~   Euro
+
+## Previous
+
+    ~   previous formula 10/05/23
+        IF THEN ELSE(wage gis[gender,ind,skill]<50*euro 1,
+        wage gis[gender,ind,skill]*(omega lambda*g lamba i[ind]+omega price*inflation+ omega \
+        employment*g e gs[gender,skill])
+                                   +IF THEN ELSE(average wage changes gis[gender,ind,skill] \
+        < -1.96* euro 1,0* euro 1, 
+        0.5*min wage average change gis[gender,ind,skill]*(Coefficient wage \
+        dispersion[gender,ind,skill]*wage delay gis[gender,ind,skill])),
+        min(0* euro 1,wage gis[gender,ind,skill]*(omega lambda*g lamba i[ind]+ omega \
+        price*inflation+omega employment[skill]*g e gs[gender,skill])+ IF THEN \
+        ELSE(average wage changes gis[gender,ind,skill] < -1.96* euro 1,0* euro 1, \
+        0.5*min wage average change gis[gender,ind,skill]*(Coefficient wage \
+        dispersion[gender,ind,skill]*wage delay gis[gender,ind,skill])
+        )))+IF THEN ELSE(Time <S Time Policy start,0* People 1 ,Act WTR wage*delta wage \
+        WTR[gender,ind,skill])
+        
+        %%%%%%%%%%%%%%%
+        wage_gis[gender,ind,skill]*(
+        omega_lambda*g_lamba_i[ind]+
+        omega_price*inflation+
+        omega_employment*(1/(1-e_gs[gender,skill]))
+                                   )
+    |
+
+# in LFPR gs\[gender,skill\]
+
+## Current
+
+    `in LFPR gs[gender,skill]= 0*LFPR gs[gender,skill]+IF THEN ELSE(Time=10*Year 1,LFPR delay gs[gender,skill]*(c19 LFPR 2020\
+        ),
+    IF THEN ELSE(Time=11* Year 1,LFPR delay gs[gender,skill]*(c19 LFPR 2021),
+    IF THEN ELSE(Time=12*Year 1,LFPR delay gs[gender,skill]*(c19 LFPR 2022),
+    IF THEN ELSE(LFPR gs[gender,skill]+e gs[gender,skill]*((exp inc e gs[gender,skill]-exp inc e delay gs\
+        [gender,skill])/exp inc e delay gs[gender,skill])
+          >1,0,
+       sens LFPR income[skill]*
+    e gs[gender,skill]*((exp inc e gs[gender,skill]-exp inc e delay gs[gender,skill])/exp inc e delay gs\
+        [gender,skill])
+          
+    ))))/Year 1
+    ~   Dmnl/ Year
+
+## Previous
+
+        ------------------------------------------------------------------------------------------
+    ~   previous formula May/202
+
+        in LFPR gs[gender,skill]=IF THEN ELSE(Time=10*Year 1,LFPR delay gs[gender
+        >                ,skill]*(c19 LFPR 2020),IF THEN ELSE(Time=11*Year 1,LFPR delay gs[
+        >                     gender,skill]*(c19 LFPR 2021),IF THEN ELSE(Time=12*Year 1
+        >                                    ,LFPR delay gs[gender,skill]*(c19 LFPR 2022
+        >                               ),IF THEN ELSE(LFPR gs[gender,skill]+sens LFPR income[
+        >                                    skill]*((1-e gs[gender,skill])*(max(0
+        >                                                   ,(exp inc ne gs[gender
+        >                                                   ,skill]-exp inc ne delay gs[
+        >                                                        gender,skill])/exp inc ne \
+        delay gs[
+        >                                                        gender,skill]))+e gs[
+        >                                              gender,skill]*(min(0,(exp inc e gs[
+        >                                                        gender,skill]-exp inc e delay \
+        gs[
+        >                                                             gender,skill
+        >                                                             ])/exp inc e delay gs[
+        >                                                             gender,skill
+        >                                                             ])))>1,0,IF THEN ELSE(
+        >                                    Time>S Time Policy start+Year 1:AND:Act WTR
+        >                                         =1,max(0,sens LFPR income[skill]
+        >                                              *((1-e gs[gender,skill])*(max(
+        >                                                        0,(exp inc ne gs[
+        >                                                        gender,skill]-exp inc ne \
+        delay gs[
+        >                                                             gender,skill
+        >                                                             ])/exp inc ne delay gs[
+        >                                                             gender,skill
+        >                                                             ]))+e gs[gender
+        >                                                   ,skill]*(min(0,(exp inc e gs[
+        >                                                             gender,skill
+        >                                                             ]-exp inc e delay gs[
+        >                                                                  gender,
+        >                                                                  skill])
+        >                                                                  /exp inc e delay gs[
+        >                                                                  gender,
+        >                                                                  skill])
+        >                                                        ))),sens LFPR income[
+        >                                    skill]*(1-e gs[gender,skill])*(max(0,
+        >                                              (exp inc ne gs[gender,skill
+        >                                              ]-exp inc ne delay gs[gender
+        >                                                   ,skill])/exp inc ne delay gs[
+        >                                                   gender,skill]))+e gs[gender
+        >                                         ,skill]*(min(0,(exp inc e gs[gender
+        >                                                   ,skill]-exp inc e delay gs[
+        >                                                        gender,skill])/exp inc e \
+        delay gs[
+        >                                                        gender,skill]))))
+        >                          )))/Year 1
+        
+        ------------------------------------------------------------------------------------------
+
+
+        old
+        sens_LFPR_income*(
+        (1-e_gs[gender,skill])*
+          \
+        max(0,(exp_inc_ne_gs[gender,skill]-exp_inc_ne_delay_gs[gender,skill])/exp_i\
+        nc_ne_delay_gs[gender,skill]
+                )
+        +e_gs[gender,skill]*
+          \
+        min(0,(exp_inc_e_gs[gender,skill]-exp_inc_e_delay_gs[gender,skill])/exp_inc\
+        _e_delay_gs[gender,skill])
+              )
+
+
+        ------------------------------------------------------------------------------------------
+        WITHOUT MIN MAX
+
+        sens_LFPR_income*(
+        (1-e_gs[gender,skill])*( \
+        (exp_inc_ne_gs[gender,skill]-exp_inc_ne_delay_gs[gender,skill])/exp_inc_ne_\
+        delay_gs[gender,skill]
+                )
+        +e_gs[gender,skill]*((exp_inc_e_gs[gender,skill]-exp_inc_e_delay_gs[gender,skill])/ex\
+        p_inc_e_delay_gs[gender,skill])
+              )
+    |`
+

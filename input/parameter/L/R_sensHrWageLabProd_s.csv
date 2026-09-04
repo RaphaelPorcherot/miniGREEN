@@ -1,0 +1,6 @@
+description,HourlyWageSensibilityToLabourProductivity,value
+"sensitivity of hourly wages to labour productivity",child,0
+,low,0.3  
+,medium,0.4 
+,high,0.5
+,cap,0

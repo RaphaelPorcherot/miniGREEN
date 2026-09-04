@@ -1,0 +1,80 @@
+library(shiny)
+library(bslib)
+library(visNetwork)
+library(rsconnect)
+
+load("model_graph.RData")
+
+# Restrict to modules with at least one edge
+graphs_shiny <- graphs[-which(names(graphs) == "")]
+display_shiny <- display[-which(names(display) == "")]
+
+ui <- page_sidebar(
+  title = "REWIND",
+  sidebar = div(
+    selectInput("select_graph", "Choose a graph amongst: ", choices = names(graphs_shiny)),
+    tags$hr(),
+    tags$h4("Legend:"),
+    # Légende dynamique (à mettre à jour selon ton graphe)
+    uiOutput("legend")
+  i),
+  card(
+    card_header(textOutput("module_title")),
+    visNetworkOutput("graph")
+  )
+) # ,
+# value_box(
+#   title = "Number of variables in module",
+#   value = textOutput("node_count"),
+# theme = "teal"
+# )
+
+
+server <- function(input, output) {
+  # Affichage du titre du module
+  output$module_title <- renderText({
+    req(input$select_graph)
+    g <- graphs_shiny[[input$select_graph]]
+    mod <- input$select_graph
+    n_lag <- length(which(g$x$nodes$group == "lag"))
+    n_var <- ifelse(mod == "main", nrow(g$x$nodes) - n_lag, length(which(g$x$nodes$group == mod)))
+    paste0("Module: ", input$select_graph, " (", n_var, " objects) ")
+  })
+
+  # Affichage du graphe
+  output$graph <- renderVisNetwork({
+    req(input$select_graph)
+    graphs_shiny[[input$select_graph]]
+  })
+
+  # Légende (exemple basique, à adapter selon ta structure de données)
+  output$legend <- renderUI({
+    req(input$select_graph)
+    g <- graphs_shiny[[input$select_graph]]
+    nodes <- g$x$nodes
+    groups <- unique(nodes$group)
+    colors <- unique(nodes$color)
+    # Exemple simple : affiche chaque groupe avec sa couleur
+    div(
+      lapply(1:length(groups), function(i) {
+        tags$div(
+          tags$span(
+            style = paste0("display: inline-block; width: 12px; height: 12px; background-color: ", colors[i], "; margin-right: 5px;"),
+            ""
+          ),
+          groups[i]
+        )
+      })
+    )
+  })
+
+  # Nombre de nœuds du groupe sélectionné
+  # output$node_count <- renderText({
+  #   req(input$select_graph)
+  #   g <- graphs_shiny[[input$select_graph]]
+  #   mod <- input$select_graph
+  #   length(which(g$x$nodes$group == mod))
+  # })
+}
+
+shinyApp(ui = ui, server = server)

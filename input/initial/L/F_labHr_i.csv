@@ -1,0 +1,20 @@
+description,industry,value
+"annual hours worked per capita by industry : GET DIRECT CONSTANTS('economy.xlsx', 'labour', 'C4')",agri, 2610
+,mining, 1821
+,manufacturing, 1742
+,petroleum, 1833
+,electricity, 1794
+,water, 1794
+,construction, 1908
+,trade, 1945
+,transport, 1951
+,hospitality, 1964
+,ict, 1848
+,finance, 1791
+,realestate, 2185
+,profserv, 1770
+,public, 1555
+,education, 1137
+,health, 1565
+,entertainment, 1700.9
+,otherserv, 1597.8

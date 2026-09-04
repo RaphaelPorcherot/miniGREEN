@@ -1,0 +1,20 @@
+description,industry,child,low,medium,high,cap 
+"Distribution of skills by industries:  skill distribution initial is. Previous values were adding up to (slightly) more than 1. I changed a bit, substracting (or summing) from (to) the high skill values. ET_DIRECT_CONSTANTS('economy.xlsx', 'labour' , 'C12*')",agri,0,0.6722950,0.296064,0.0316416,0 
+,mining,0,0.4574820,0.376719,0.1657990,0 
+,manufacturing,0,0.4425290,0.479863,0.0776073,0 
+,petroleum,0,0.4425290,0.479863,0.0776073,0 
+,electricity,0,0.1719650,0.659329,0.1687060,0 
+,water,0,0.5278910,0.412281,0.0598280,0 
+,construction,0,0.5908130,0.373146,0.0360408,0 
+,trade,0,0.4123600,0.515886,0.0717540,0 
+,transport,0,0.4149610,0.523179,0.0618606,0 
+,hospitality,0,0.4772860,0.478494,0.0442200,0 
+,ict,0,0.0534110,0.625853,0.3207360,0 
+,finance,0,0.0631102,0.630669,0.3062210,0 
+,realestate,0,0.1770670,0.675742,0.1471910,0 
+,profserv,0,0.2540400,0.455823,0.2901380,0 
+,public,0,0.1964470,0.587608,0.2159440,0 
+,education,0,0.0846532,0.407896,0.5074510,0 
+,health,0,0.1583990,0.402904,0.4386970,0 
+,entertainment,0,0.2231470,0.507740,0.2691130,0 
+,otherserv,0,0.4635820,0.438682,0.0977360,0 

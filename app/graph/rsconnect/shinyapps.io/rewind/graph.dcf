@@ -1,0 +1,10 @@
+name: graph
+title:
+username: rewind
+account: rewind
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 15309787
+bundleId: 10856441
+url: https://rewind.shinyapps.io/graph/
+version: 1

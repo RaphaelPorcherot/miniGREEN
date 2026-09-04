@@ -1,0 +1,20 @@
+description,industry,value 
+"mean delta lambda i[ind]= GET DIRECT CONSTANTS( 'economy.xlsx', 'technology', 'glambda_mean')",agri,0.0324111 
+,mining,0.083313 
+,manufacturing,0.0201578 
+,petroleum,0.040781 
+,electricity,0.00756808 
+,water,0.00756808 
+,construction,0.00535792 
+,trade,0.0203529 
+,transport,0.0164035 
+,hospitality,0.00663932 
+,ict,-0.0172552 
+,finance,0.0273986 
+,realestate,0.023323 
+,profserv,-0.00933686 
+,public,-0.0000877796 
+,education,0.00392592 
+,health,0.000410888 
+,entertainment,0.0127244 
+,otherserv,-0.000269268

@@ -1,0 +1,20 @@
+"description","industry","child","low","medium","high","cap"
+"Dmnl ~This coefficient gives us the ratio between the standard deviation/average wages gis. One standard deviation is thus equal to the coefficient*average wage. |","agri",0,0.638428,0.512021,0.926055,0
+"","mining",0,0.456336,0.425929,0.519882,0
+"","manufacturing",0,0.456336,0.425929,0.519882,0
+"","petroleum",0,0.456336,0.425929,0.519882,0
+"","electricity",0,0.456336,0.425929,0.519882,0
+"","water",0,0.456336,0.425929,0.519882,0
+"","construction",0,0.602411,0.402124,0.441224,0
+"","trade",0,0.463066,0.448941,0.491294,0
+"","transport",0,0.467338,0.358451,0.40725,0
+"","hospitality",0,0.514674,0.579525,0.661498,0
+"","ict",0,0.54034,0.405841,0.637971,0
+"","finance",0,0.392716,0.461587,0.364611,0
+"","realestate",0,1.23987,0.484706,0.676547,0
+"","profserv",0,1.23987,0.484706,0.676547,0
+"","public",0,0.507173,0.294707,0.561078,0
+"","education",0,0.559537,0.406284,0.478122,0
+"","health",0,0.466298,0.354443,0.604426,0
+"","entertainment",0,0.458744,0.58205,0.53819,0
+"","otherserv",0,0.458744,0.58205,0.53819,0

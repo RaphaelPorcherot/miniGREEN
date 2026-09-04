@@ -1,0 +1,17 @@
+name,value,module,table,units,description
+R_VAT,0.11,GOV,initial,%,"value added tax rates. Will keep the 11% (effective economy wide rate = \https://data.worldbank.org/indicator/GC.TAX.GSRV.VA.ZS?locations=IT ) GET_DIRECT_CONSTANTS('economy.xlsx', 'government', 'vat_rates' )"
+R_markupNormal, 0.8,P,parameter,%,"US normal rate of capacity utilisation. aproximate stable historical mean for US, see Setterfield & Avritzer, 2020 \(Metroeconomica)GET DIRECT CONSTANTS( 'economy.xlsx', 'investments', 'normalcaputi')"
+R_socSecEmployer,0.2381,GOV,initial,%,"socias security rate paid by employers GET DIRECT CONSTANTS('economy.xlsx', 'government', 'C2') and C3"
+R_socSec,0.33,GOV,initial,%,"total social security rate as a % of net wages GET DIRECT CONSTANTS('economy.xlsx', 'government', 'C9' )"
+F_othBenefPerCap,118.534,GOV,initial,€,"other benefits per capita GET DIRECT CONSTANTS('economy.xlsx', 'government', 'C11' eurostat"
+R_sensLFPRIncome,0.65,L,parameter,,sensibilitiy of labor force participation rate to income expectations. Previously: 0.3 OR 0.58. Source : bargainComparingLaborSupply2014
+R_inflation,0.0153,P,initial,,"inflation rate GET DIRECT CONSTANTS('economy.xlsx', 'prices', 'B1')"
+R_sensHrWageEmp,0.3,L,parameter, ,"sensitivity of hourly wages to employment : sensitivity of hourly wages to employment. #PREVIOUS 0.015 PREVIOUS VALUES MAY.23 0.3,0.5,0.8"
+SH_unempCov,0.462369,GOV,parameter,%,"coverage ratio: fraction of unemployed receiving unemployment benefits. GET_DIRECT_CONSTANTS('economy.xlsx', 'government', 'C8' )"
+SH_unempBenef_toWage,0.530407,GOV,initial,%,"unemployment benefit's fraction of wages GET DIRECT CONSTANTS('economy.xlsx', 'government', 'C9' )"
+SH_pension_toWage,0.78554,GOV,initial,%,"share of pension in gross wage GET DIRECT CONSTANTS('economy.xlsx', 'government', 'C10')"
+n_incomeTaxBracket,5,GOV,initial,,number of income tax bracket
+elastXp,0.5,TR,parameter,,calibrated 26062021
+reproLife,30,DEM,parameter,%,"average reproductive life  GET DIRECT CONSTANTS('demography.xlsx', 'demography' , 'C24' )"
+R_fertility,1.45512,DEM,parameter,,fertility rate
+timeSkillTransition,3,DEM,parameter,,time for skill shift to complet

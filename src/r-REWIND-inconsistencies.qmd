@@ -1,0 +1,1215 @@
+---
+jupyter: python3
+---
+
+TEMPLATE
+
+##Issue (STATUS: one of “solved, not solved”)
+
+###Problem
+
+<put here code and description if relevant>
+
+###Solution
+
+<put here updated code as integreated into R model>
+
+## ULC i ULC T iv
+
+### Problem on unitLabCost
+
+Weird point : costs of current period (assuming current employment) are compared to previous period output (though the latter is used in the computed of current desired labour hence of current employed labour).
+
+### Solution
+
+The solution is not clear.
+
+### Problem 2
+
+The equation is not the same
+
+```
+
+ULC i[ind]=
+	(ZIDZ((GWB i[ind]-level WTR gov paid i[ind])*(1+ss rate employer),y real delay i[ind\
+		]))* Euro good 1
+	~	Euro/Goods
+	~	unit labour costs
+		
+		## 05/04/23
+		previous formula: 
+		(ZIDZ((GWB i[ind]-level WTR gov paid i[ind])*(1+ss rate employer),y nom i[ind]))* \
+		Euro good 1
+		##
+		That was a real variable (the wage share in each sector). Not a nominal to be \
+		considered in the price formation.
+		One possible solution is to multiply the numerator per the price level.
+	|
+```
+
+```
+
+ULC T iv[ind,techn]=
+	(GWB T iv[ind,techn]*(1+ss rate employer)/y nom delay i[ind])*Euro good 1
+	~	Euro/Goods
+	~		|
+
+```
+
+### Solution 2
+
+We add `level WTR gov paid i` (in fact, `delta wage WTR`, see below) to `ULC T iv`. 
+
+### Problem 3
+
+The observation made in comment section of ULC i is non sensical : 
+* a wage share is dimensionless
+* any way, as wage gis is a nominal variable, so is `GWB` : to get the wage share, it is necessary to divide by nominal total product
+
+Also in fact this is not the wage share :  it is the wage component in sectorial total price (we are not comparing with value added).
+
+### Solution 3
+
+We divide ULC i by y nom.
+
+Additionnally we need to make sure UFC initial is nominal and not real. If it is real, we have a problem. 
+
+This seems to be nominal : [link](https://docs.google.com/spreadsheets/d/1dO1lUa1FJjvcLmjDDJvh7xdHVAOyIdmL/edit?gid=964982453#gid=964982453)
+
+# Not solved
+
+## F_taxIncPerCap_u_sg <- F_GPBperCap_sg * (1 - R_socSecEmployee) 
+
+### Problem
+
+Unlike unemployed, pensioners do not have to make contributions to Social Security - they've already done so during their working life. 
+
+In France, the CSG has been introduced that mimic social security contributions. It applies also to pension. This amounts to some sort of SS contributions by pensioners. 
+
+However: 
+* the CSG rate is not the same as R_socSecEmployee (which also should vary across skills, especially in France where exemptions according to wage level are hgih)
+* we need to check whether Italy has some similar mechanism. If not, it should be corrected.
+
+En France :
+* Les retraités sont assujettis à 3 contributions : la CSG la CRDS et la Casa pour l'autonomie
+* Une cotisation maladie s'ajoute pour les pensions complémentaires
+* les bénéficiaires de l'allocation chômage paient seulement la CSG, la CRDS et une cotisation pour la retraite complémentaire. Pas de cotisation maladie, retraite régime général ou famille
+-> il faudrait un taux différent par status.
+  
+### Solution
+
+## Tax progressivity multiplier
+
+
+### Problem
+
+Maybe just a glitch but the factor increases, then decreases then increases again.
+
+```r
+progresTaxFactor[] <- c(0,1,1.1739,1.6522,1.7826,1.8696)
+```
+
+
+### Solution
+
+## employmentRate Unemplyment Rate and the like
+
+### Problem
+
+Employment rate is employed/working age
+
+Employed pop is defined as the sum of :
+
+* previous period Job Guarantee
+* current employed labour coming from
+    * current desired labour (current pop, current labour prod, current labour hour, but previous output, previous skill and male share)
+    * current labour supply (current pop, previous LFRP, previous JG)
+
+So its pretty much between periods :
+
+`R_e_s <- empPop_s / workAgePop_s_lag`
+
+
+### Solution
+
+Consistency must be check with defintion of unemployement rate , LFRP and the like. In particular we need to make sure that what is a subset of what is indeed a subsest of what
+
+## SH_renew_i
+
+### Problem
+
+The intervall of pre and post policy start are fixed : 2022 is the dividing year + base rate of growth after 2022 are meant to go up to 2030. 
+
+See : `R_gSHRenew_2021_2030_i`
+
+```
+if(t >= 2022){
+            R_gShareRenew_i <- gp("R_gSHRenew_2010_2021_i")
+        }else{
+            R_gShareRenew_i <- gp("R_gSHRenew_2021_2030_i")
+        }
+```
+
+
+### Solution
+
+We need to ask Till about what he meant to do. 
+
+
+## R_unitFactorCost_i
+
+### Problem
+
+The origin of the data is unknown. 
+
+They need to be nominal, else it does not have any sense. 
+
+### Solution
+
+TBD.
+
+## Act_BI and Act_progrIncomeTax
+
+### Problem
+
+In the current setup, the policy switches Act_BI and Act_progressive_Inc_Tax are treated as mutually exclusive, but this exclusivity is not enforced in the model logic. If both are activated at the same time, only Act_BI takes effect due to its priority in the nested IF THEN ELSE structure.
+
+This can lead to silent bugs, where one policy is unintentionally ignored, even though both are marked as active.
+
+### Solution
+
+We allow these policies to be cumulative in POL_incomeTaxRate()
+
+we might want to add a logic allowing to parametrize the % change in progressiveity rather than just giving new absolute level of tax rates
+
+## R_markupNormal
+
+### Problem 
+
+* calibrated on the US
+* assumed to be fixed
+
+### Solution
+
+Calibrate it!
+
+## R_markupCalib_i
+
+### Problem 
+
+* calibration for only two sectors on the US
+* the other sectors have the same calibration parameters
+* assumed to be fixed
+
+### Solution
+
+Calibrate it!
+
+## R_markup_i
+
+### Problem
+
+magic number when computing markup delay i 
+
+```
+
+markup delay i[ind]= DELAY FIXED (
+	markup i[ind], Year 1 , 0.45*markup initial i[ind])
+	~	Euro
+	~	markup i[ind], Year 1 , 0.5*markup initial i[ind]
+	|
+
+```
+
+### Solution
+
+provide a raitonale
+
+## R_dGFCFrealCovid R_dXnomCovid R_dCrealCovid
+
+### Problem 
+
+The rate of change during year covid : 
+R_dGFCFrealCovid
+2020 GET DIRECT CONSTANTS('economy.xlsx', 'inputoutput' , 'cov_i_1')    
+2021-2022 GET DIRECT CONSTANTS('economy.xlsx', 'inputoutput' , 'cov_i_2')
+note : 2021 value is recycled for 2022 value.
+
+But when called upon, c19 shock inv does not use 2021 : 
+
+```
+Time=10*Year 1,
+	             GFCF real i delay[ind]*(1+c19 shock inv),
+	             IF THEN ELSE(Time=11*Year 1,
+	                          GFCF real i delay[ind]*(1+c19 shock inv),
+	                          min(I desired i[ind],I max i[ind])
+	                          )
+	              ) ~~|
+```
+
+### Solution
+
+Simply get actualised value that may not have been available at the time of the venism coding? 
+
+Thus allows covid impact to last 3 and not only 2 years.
+
+Also that was already the case in CrealCovid. The Vensim model was thus inconsistent in his treatment of I and C and X during Covid time
+
+### Problem 2
+
+Weirdly enough covid impact real investment demand but nominal export ? 
+
+### Solution 2
+
+## R_u_sg
+
+### Problem 1 : negative intial values for mal
+
+As computed, given the initial values, unemployemnt rate are negative
+for male of all skills while being positive for women.
+
+### Solution 1 :
+
+## SH_skill_is
+
+### Problem
+
+initial values adds to slightly more than one, a correction has been made but rational must be provided.
+
+### Solution
+
+Provide a rational !
+
+Additionnally a rescaling check has been introduced into shift_SkillLabourShare to make sure that it actually adds up to one by industry.
+
+# Solved but results need extra-checking
+
+## R_p_i
+
+### Problem
+
+Currently, the model computes **unit labor costs (ULC)** like this (simplified):
+
+```r
+totalCost_isg <- (F_GWB_isg - F_govWageCompWTR_isg) * (1 + R_socSecEmployer)
+```
+
+Where:
+
+```r
+F_GWB_isg <- R_hrWage_isg_lvl * F_labHr_i * ST_labEmp_isg
+```
+
+- `R_hrWage_isg_lvl` is a **lagged wage** (from period t−1),
+- `F_labHr_i` and `ST_labEmp_isg` are from period t, but also reflect past dynamics (: past real total output for ST_labEmp).
+
+As a result, `ULC_t` is already a combination of data from both t and t−1.
+
+Then, unit factor costs (UFC) are calculated as:
+
+```r
+R_unitFactorCost_i <- R_unitInputCost_i + R_unitLabCost_i
+```
+
+This means `UFC_t` is based on partially lagged input costs and a partially lagged labor cost component.
+
+However, when setting prices, the model currently uses:
+
+```r
+R_p_i[] <- 1 + R_markup_i * (1 + R_VAT) * R_unitFactorCost_i_lag
+```
+
+This implies that **prices at time t depend on UFC from t−1**, which already includes data from t−2 and t−1. In other words, prices at t are not aligned with the actual costs of production at t.
+
+### Solution
+
+
+To ensure that prices at time t reflect the actual costs of the current period, update the formula to:
+
+```r
+R_p_i[] <- 1 + R_markup_i * (1 + R_VAT) * R_unitFactorCost_i
+```
+
+This corrects the temporal mismatch and ensures internal consistency in the timing of cost and price calculations.
+
+We however needs to check whether it makes prices too unstable.
+
+May be we would need some sort of accounting model to account for Marxian value revolutions ? 
+
+### Problem 2
+
+* price can not decrease : deflation is ruled out thanks to a max function. Because technogoly is too sensitive.
+
+### Solution 2
+
+We got rid of the max() that was preventing the model to enter deflationnary dynamics
+
+## R_markup_i
+
+### Problem 
+
+The max function prevents reducing mark-up when capacity is lower than normarl
+capacity rate.
+
+### Solution
+
+We remove it, but check unrealistic deflationary dynamics ! 
+
+# Solved
+
+## SH_enSrc_enDemZ_in
+
+### Problem
+
+`SH_enSrc_enDemZ_in` stems from 
+
+1. an autonomous growth rate of renewable
+
+2. a policy rate of change of energy share depending on the current configuration of the Act_phaseOut policy.
+
+No choice has been made between two mutually exlusive options : 
+
+* either component 2 adds up to component 1
+
+* or component 2 replaces component 1
+
+For instance this part :
+
+```vensim
+
+share RES i[solid,ind]
+- IF THEN ELSE(Time<S Time Policy start,0,Act phase out) * phase product[solid] * (
+    reduction in share[solid,ind] 
+    + in share RES i[solid,ind]
+```
+
+This suggests that policy (comp.2) replaces autonomous change (comp.1)
+
+However then when computing the redistribution of the shares of phased out energy to non-phased out energy : 
+
+```vensim
+ + IF THEN ELSE(Time<S Time Policy start,0,Act phase out) * (1-replace renew) * (
+        phase product[liquid] * (
+            reduction in share[liquid,ind] + in share RES i[liquid,ind]) * (
+                Share source Ed Z nrg i[solid,ind]/(
+                        1-Share source Ed Z nrg i[liquid,ind]-phase product[gas]*Share source Ed Z nrg i[gas,ind]-phase product[biomass]*Share source Ed Z nrg i[biomass,ind]
+                                                    )
+                                        )
+```
+
+This is incoherent : if policy replaces autonomous growth, then the reduced energy mix (the sahre source/ (1-remaining energy) part) should not be in factor of the sum of `reudction in share` and `in share res` but only of `reduction in share`.
+
+### Solution 
+
+We assume that policy does not replace autonomous policy mix. 
+
+Hence : 
+
+```r
+       # Change from endogenous renewable growth
+        factor_in <- 1 + R_gEnShare_fromRenew_in
+
+        # Change from policy
+        if(t >= start and gp("Act_phaseOut")==1){
+            
+            if{gp("how_phaseOut")==1}{# Full phasing out through renewable
+                
+            # the reduction
+                factor_in <- factor_in + R_gEnShare_fromPolicy_in 
+
+```
+
+And this implies that the redistribution of shares of phased-out energies is based on the energy mix that includes the autonomous change due to autonomous growht in renewables.
+
+```r
+SH_currEnSources_in <- SH_enSources_in_lvl * (1 + R_gEnShare_fromRenew_in)
+```
+
+This may be changed, but this should be cohernet
+
+## R_gEnShare_fromRenew_in
+
+### Problem
+
+inconsistent update criteria in `in share RES i` :
+
+```vensim
+RES shares g rates 2130 i[ind] + Share source Ed Z nrg i[renew,ind] > 1
+```
+
+We can not add a rate to a share + R*S (their simple product) would not be over 1 unless it was (1+R)*SH.
+
+### Solution
+
+Corrected this criteria: 
+```r
+POL_shift_enSourceShareDueToRenewGrowth_i <- function(){
+    eq({# in share RES i (qui n'a pas de lvl correspondant mais est utilisé plutôt dans la fonction ci-desssous ainsi que dans celle de la demande finale donc on l'isole
+        # Compute the growth rate of renew energy by industry
+        if(t < 2022){
+            R_gRenewShare_i <- gp("R_gRenewShare_2010_2021_i")
+        }else{
+            R_gRenewShare_i <- gp("R_gRenewShare_2021_2030_i")
+        }
+        # Ensure the shares sum up exactly to 1 by industry = no free (energy) lunch
+        SH_enSources_in_lvl <- SH_enSrc_enDemZ_in_lvl/rowSums(SH_enSrc_enDemZ_in_lvl)
+        
+        # Compute elements
+        SH_renew_i <- SH_enSources_in_lvl[,"renew"]
+        SH_fossil_i <- 1 - SH_renew_i
+        
+        relShareEn_in_fossil_in <- SH_enSources_in_lvl / SH_fossil_i
+        # if no fossil at all, then simply 0
+        relShareEn_in_fossil_in[is.na(relShareEn_in_fossil_in)] <- 0
+
+        # General case : shift out of fossil towards renew
+        R_gEnShare_fromRenew_in <- template_industry_in
+        R_gEnShare_fromRenew_in[] <- - R_gRenewShare_i * relShareEn_in_fossil_in # reduction
+        R_gEnShare_fromRenew_in[, "renew"] <- + R_gRenewShare_i # increase
+        
+        # Special case : renew totally takes over fossil. 
+        # TEST : Check whether the new level would be above unity given selected growth rate and previous year lvl
+        renewExceedCap <- ( SH_renew_i * (1 + R_gRenewShare_i) )> 1
+        idx <- which(renewExceedCap)
+        R_gEnShare_fromRenew_in[idx,] <- - SH_fossil_i[idx] # reduction
+        R_gEnShare_fromRenew_in[idx, "renew"] <- + SH_fossil_i[idx] # increase 
+            # in fact this is a cap here : since renew g rate exceeds 1, this applies to assign to make renewable the sole energy source of sector that was verifying the condition
+        R_gEnShare_fromRenew_in
+    })
+}
+```
+
+## R_carbonTax
+
+### Problem 
+
+weird `-1`in interpolation formula :
+ 
+```r
+current + ((target - current)*(t-start- 1 )) / (end-start)
+```
+
+### Solution
+
+We get rid of it.
+
+## R_markup_i 
+
+### Problem
+
+Inconsistent use of shock : it is already a factor, why substracting and adding 1 ? This generates likely far too low markup upon shock
+
+See 
+
+```
+markup i[ind]=
+	IF THEN ELSE(
+	Time>(Time shock-1),
+	markup delay i[ind]*(1+(markup calibration parm i[ind]*max(uc delay i[ind]-uc normal\
+		,0)))*(1+(Markup shock-1)*Act Markup Shock),
+	markup delay i[ind]*(1+markup calibration parm i[ind]*max(uc delay i[ind]-uc normal,\
+		0))
+	)
+	~	Euro
+	~		|
+
+```
+
+And 
+
+```
+Markup shock=
+	IF THEN ELSE(Time=Time shock,1+Markup shock value,
+	IF THEN ELSE(Time=(Time shock+1),1.02,
+	IF THEN ELSE(Time=(Time shock+2),POWER((1/(1.02*(1+Markup shock value))),(1/5)),
+	IF THEN ELSE(Time=(Time shock+3),POWER((1/(1.02*(1+Markup shock value))),(1/5)),
+	IF THEN ELSE(Time=(Time shock+4),POWER((1/(1.02*(1+Markup shock value))),(1/5)),
+	IF THEN ELSE(Time=(Time shock+5),POWER((1/(1.02*(1+Markup shock value))),(1/5)),
+	IF THEN ELSE(Time=(Time shock+6),POWER((1/(1.02*(1+Markup shock value))),(1/5)),
+	1
+	)))))))
+	~	
+	~		|
+```
+
+After the shock period is complete, markup shock = 1
+
+### Solution
+
+We simply do 
+::
+
+## L T gisv and L gis
+
+### Problem
+
+Conceptual confusion lvl and lag - likely the case also for the computation of lambda diffusion 
+
+In L gis : 
+```
+L gis[male,ind,skill]=
+	L is[ind,skill]*male share is[ind,skill] ~~|
+L gis[female,ind,skill]=
+	(1-male share is[ind,skill])*L is[ind,skill]
+	~	People
+	~	employment by industry, skill and gender
+	|
+```
+In L T gisv 
+
+```
+L T gisv[gender,ind,skill,techn]=
+	L T isv[ind,skill,techn]*male share delay is[ind,skill]
+	~	People
+	~		|
+
+```
+
+It should be male share and that's all, no delay, since male share is already a lag variable since its a level.
+
+The same goes for L isv vs L is with skill trend is.
+
+The delay versions of both variables are never used elsewhere. 
+
+
+### Solution
+
+We homogeneise L T gisv and L T isv on the basis of their actual counterparts using male shaire and skill trend without delay.
+
+### Problem 2 
+
+L gis was translated to desired labour which relates to actually employed labour through the use of a rescaling factor.
+
+This is not necessarily an issue : after all, when it comes to technological decisions, we are still in the domain of the hypotethical. The employers may well form their production and technological plans based on desired labour rather than employed labour. 
+
+Indeed, the point of L T gisv is to compute GWB T iv and from there ULF through ULC. 
+
+In turn, ULF is used to compute T_i through the use of an additionnal draw from a random uniform() and finally from T_i the rate of change of labour productivtiy.
+
+### Solution 2
+
+So we do not correct it by introducing an equivalent rescaling factor. However, the reasoning needs to be made explicit and care and attention must be brought to this idea that technological is in a sense "before-the-market".
+
+## GWB T gis
+
+### Problem : incoherent delay in wage delay gis
+
+Same applies to wage delay gis as to male share delay gis. 
+
+### Solution 
+
+See below R_hWage_isg
+
+### Problem : max() inconsistencies with parent variable GWB gis
+
+Not an issue per se, since we already corrected in the definition of wage gis, but GWB gis and GWB T gis should use the same blueprint. 
+
+There is a max() element in GWB gis that is not on GWB T gis. 
+
+```
+GWB gis[gender,ind,skill]=
+	(max(wage min[gender,ind,skill],wage gis[gender,ind,skill])
+	*hours i[ind]*L gis[gender,ind,skill])/(People 1*Hours 1)
+	)
+	~	Euro
+	~	gross wage bill
+
+GWB T iv[ind,techn]=
+	(sum(wage delay gis[gender!,ind,skill!]*hours i[ind]*L T gisv[gender!,ind,skill!,techn\
+		]))/(People 1*Hours 1)
+	~	Euro
+	~		|
+```
+
+### Solution : 
+
+
+Note that no need to put max(wagemin, wage gis) anymore in it, no more than in GWB gis, since wage gis already has a max() (and and a min() !) policy element, triggered when adequate.
+
+
+## Policies and shock
+
+### Problem
+
+a minor inconsistency has to do with the fact that sometimes policy are triggered when Time > S Time Policy start or else when Time is no longer < S Time Policy start, causing non-synchronised policy deploymennt
+
+### Solution
+
+All policies start when `t >= start`.
+
+### Problem 2
+
+For some reason 
+* `Time Policy start = 14`
+* `Time shock=Time Markup Shock = 12`
+
+### Solution 2 
+
+Shock starts with policy at startPolicy.
+
+To get the pure effect of shock, simply set all policies inactive.
+
+## F_govWageCompWTR, delta wage WTR gov paid level WTR gov paid gis
+
+### Problem
+
+That time, instead of confusing lvl and lag, integration was incorrectly made on a level, amouting to double integration. 
+
+In :
+```
+delta wage WTR gov paid[gender,ind,skill]=
+	delta wage WTR[gender,ind,skill]*gov share wage WTR
+```
+`delta wage WTR` is already a level (conceptually, but not coded as such) : 
+
+```
+
+delta wage WTR[gender,ind,skill]=
+	IF THEN ELSE(
+	Time <S Time Policy start,0*euro 1,
+	Act WTR wage*wage delay gis[gender,ind,skill]*((delay hours i[ind]/hours i[ind])-1)
+```
+
+The rate of change is actually : `((delay hours i[ind]/hours i[ind])-1)`
+
+While `wage delay gis` is the base (two more related issue-and their correction-can be found in the section below).
+
+Hence :
+
+```
+level WTR gov paid gis[gender,ind,skill]= INTEG (
+	delta wage WTR gov paid[gender,ind,skill],
+		0*euro 1)
+```
+
+has no meaning whatsoever. `F_govWageCompWTR` (what was called dealta wage gov WTR) ALREADY gives the flux of govenrment comepnsation for WTR
+
+### Solution
+
+We read `delta wage WTR gov paid` whenever `level WTR gov paid gis` is asked :
+* in profits i 
+* profit share i
+* level WTR gov paid i
+
+## R_gWageCompWTR_i
+
+### Problem
+
+The reduction of labour hours needs to be matched by an equivalent increase in hourly wage in case of full wage compensation. 
+
+However, the reduction of labour hours was computed with respect of the arrival point, that is the reduced labour hours, while the increase in hourly wage was expressed as a % increase with respect of the origine point, that is previous period hourly wages. 
+
+The confusion is likely caused by the fact that a negative change should correspond to a positive change.
+
+### Solution
+
+Instead of 
+
+```
+diff <- F_labourH_i_lag - F_labourH_i
+        base <- F_labourH_i
+        R_gWageCompWTR <- diff/base
+```
+
+We use rather this : 
+
+```
+POL_WTR_wageComp <- function(){
+    eq({# delta wage WTR : in fact it only gives the rate of change no the actual delta
+        diff <- F_labHr_i - F_labHr_i_lag
+        base <- F_labHr_i_lag
+        R_gWTR <-  diff / base
+        R_gWageCompWTR <-  R_hrWage_isg_lvl *  (- R_gWTR)  # This a REDUCTION of labour hours that needs to be matched by an INCREASE of hourly wage, hence the negative sign.
+        R_gWageCompWTR
+    })
+```
+This a REDUCTION of labour hours that needs to be matched by an INCREASE of hourly wage, hence the negative sign. Note that contrary to originally, base is _lag. It was inconsistent in the Vensim model.
+
+### Problem 2 
+
+Dlta wage WTR was computed with respect to wage delay gis, that is : wage lag 2, since wage gis is already a level. 
+
+
+```
+delta wage WTR[gender,ind,skill]=
+	IF THEN ELSE(
+	Time <S Time Policy start,0*euro 1,
+	Act WTR wage*wage delay gis[gender,ind,skill]*((delay hours i[ind]/hours i[ind])-1)
+	)
+	~	
+	~		|
+
+```
+### Solution 2
+
+This is inconsistent. The reduction now apply to the value of wage at the beginning of period.
+
+We apply it to R_HrWage_isg_lvl.
+
+```
+  if (t >= start && gp("Act_wageCompWTR") == 1){
+           #+  delta wage WTR[gender,ind,skill])}
+           factor_isg <- factor_isg + R_changeWageWTR 
+           # child and cap column are now not zero, but they will be brought back to this in the next line so no need to get rid of it.
+       }
+```
+
+## R_hrWage_isg R_maxHrWage and R_minHrWage delta wage WTR
+
+### Problem 
+
+There is a minimal wage policy used to impact the evolution of wage if triggered. However, besides the impact of minimum wage on wage distribution through lookup function, `R_hourW_isg` is not constrained by a min() or a max(). 
+
+Plus in Vensim there was a duplicated entry : Minimum wage value 
+* but also `wage min[gender,ind,"skill & cap"]=IF THEN ELSE (Time<(13*Year 1),Euro 0,Euro 0)~	Euro ~`
+* and wage min used in `gross annual income e gis` ; `GWB gis` ; `wage delay gis`
+
+### Solution
+
+We integrate the impact of minimum/maximum wage policy into the computation of `R_hourW_isg` : no longer necessary to explicitely integrate it as max() into grooss annual income or else GWB.
+
+### Problem 2
+
+wage delay gis is inconsistent : wage_gis is already a level, hence a lagged variable
+
+TO CHECK THIS IS TO CHECK THAT FIRST VALUE OF A LEVEL VARIABLE SAY LFRP IS NOT THE SAME AS INITIAL VALUE.
+
+### Solution 2
+
+We remove wage delay gis, upon which the wage distribtional impacts of min/max wage policy where applied, and apply directly to `R_hourW_isg`
+
+Also in `delta wage WTR`=  we consider that wage delay is wage gis lvl
+
+
+wage delay gis also used :
+
+* GWB T gis
+* max average wage changes gis
+* (min) average wage changes gis
+* difference wage max wage gis
+* difference wage min wage gis
+* delta wage WTR
+
+
+### Problem 3
+
+While `R_hourW_isg` does incorporate the effect of inflation, it is not the case for minimum and maximum wage. 
+
+### Solution 3
+
+We add an automatic updating rule reflecting the same indexing intensity as the partial indexing built in the rule governing `R_hourW_isg`. 
+
+### Problem 4
+
+`       factor_csg <- 1 + (omega lambda[skill] * g lamba i[ind] + omega price * inflation + omega employment[skill] * g L gis[gender,ind,skill]),    
+`
+
+We leave it as it was, but the initial idea was probably that current changes should apply to current wage levels. However, this is not possible, since current changes actually determine the wage levels themselves. As it was originally written, it implied that current changes modify the wage levels inherited from the previous period — which is conceptually inconsistent.
+
+## F_otherBenefitsPerCap 
+
+### Problem : inconsistent price indexing of others benefits
+
+Its likely to be the case also for child benefits and that other I don’t
+remember the name.
+
+    other benefits per cap=
+        IF THEN ELSE(Time<S Time Policy start,
+                     init other benefits per cap*(1+inflation delay),
+                     (1-Act BI)*init other benefits per cap*(1+inflation delay)
+                     )
+        ~   Euro
+        ~       |
+
+    init other benefits per cap=
+        IF THEN ELSE(Act focalized benefit=1:AND:Time>S Time Policy start,
+                     Focalized benefit per capita,
+                     S1 init other benefits per cap
+                    )*IF THEN ELSE(Time<S Time Policy start,
+                        1,
+                        1+min(S Time end-S Time Policy start,Time-S Time Policy start)*(S other benefits\
+            /(S Time end-S Time Policy start
+        ))
+                        )
+
+The issue is that at each period, `init other benefits per cap` which is the basis for `other benefits per cap` is reset to either the original paramaeter value for other benefits `S1 init` or, when its policy time and if `focalized benefit per capita` is activated, to another fixed but higher value.
+
+While the latter is correctly reevalutad taking into account last period inflation, the way its `init` version is coded implies a behavior through which other benefts stay constant in value.
+
+### Solution : making F_otherBenefitsPerCap dependant on its lagged version
+
+It is done here :
+
+    POL_othersBenefits_focOrNot <- function() {
+        eq({##init other benefits per cap 
+            if (t == 1 & gp("Act_focBenefits") == 1) {
+                F_otherBenefitsPerCap <- gp("focBenefits")
+            } else {
+                F_otherBenefitsPerCap <- F_otherBenefitsPerCap_lag
+            }
+            F_otherBenefitsPerCap 
+        },
+           dep=c("F_otherBenefitsPerCap_lag"))
+        
+    }
+
+## ST_EmpLab_i 
+
+### Problem : unemployment may be negative
+
+Beyond others errors such as too higher real output in the first year,and double substracting of Job Gurantee programm, which are easily corrected, the fundamental reason why is the following.
+
+Consider :
+
+    employedWorkers_i  <- function() {
+        eq({
+            ST_labour_i <- F_Yreal_i_lag / ( R_lambda_i * F_labourH_i )
+            ST_labour_i[is.nan(ST_labour_i)] <- 0
+            ST_labour_i
+            },
+          dep=c("F_Yreal_i_lag", "R_lambda_i", "F_labourH_i")
+          )
+    }
+
+AND
+
+    activePop_csg <- function() {
+        eq({
+            #defined out of levels variables in vensim : hence its a lagged variable
+            ## ST_labourSupply_csg : labour supply gs
+            ST_labourSupply_csg <- R_LFRP_csg_lag * Pop_lag - ST_labourJG_csg_lag
+            ST_labourSupply_csg 
+        },
+          dep=c("R_LFRP_csg_lag", "Pop_lag", "ST_labourJG_csg_lag")
+          )
+    }
+
+Unemployment is `ST_labourSupply_csg - ST_labour_i`
+
+Since `ST_labourSupply_csg` is entirely dependant of past period values while `ST_labour_i` also depends on current policies (hourW) and current technological progresses (lambda) ;
+
+And since capitalists passively hire as many workers as currently required given current policies and technology to reproduce the same level of output of last period,
+
+THEN : they may hire more workers than actually available.
+
+### Solution : ST_labour_i in employedWorkers_i should be a min()
+
+More precisely : it should be the minimal value between :
+
+- what capilalist want to hire : F_Yreal_i_lag / ( R_lambda_i \*
+  F_labourH_i)
+
+- what capilalist may actually hire : ST_labourSupply_csg
+
+The issue here is that `ST_labourSupply_csg` and `ST_labour_i` share no common index.
+
+Hence we cannot write :
+
+    ST_labour_i <- min(F_Yreal_i_lag / ( R_lambda_i * F_labourH_i ), ST_labourSupply_csg)
+
+We construct then a 2D skill gender array giving the scaling factor that we shoudl apply to labour quantities desired by capitalists to integrate the actual labour availability.
+
+    ### THIS VARIABLE CONNECTS PERIOD ### 
+    desiredLabour_i  <- function() {
+        eq({
+            ST_desiredLabour_i <- F_Yreal_i_lag / (R_lambda_i * F_labourH_i)  ## Negative unemployement mistake
+            #ST_labour_i <- min(F_Yreal_i_lag / ( R_lambda_i * F_labourH_i ),  
+             ##                  ST_labourSupply_csg)
+            ST_desiredLabour_i[is.nan(ST_desiredLabour_i)] <- 0
+            ST_desiredLabour_i
+            },
+          dep=c("F_Yreal_i_lag", "R_lambda_i", "F_labourH_i")
+          )
+    }
+
+    desiredLabour_isg  <- function() {
+        eq({
+            ## L is - employed workers by industry and skill
+            ST_desiredLabour_is <- ST_desiredLabour_i * SH_skill_is_lag
+            ## L gis - employed workers by industry skill and gender
+            ST_desiredLabour_isg <- template_industry_isg
+            ST_desiredLabour_isg[,,"male"] <- ST_desiredLabour_is * SH_male_is_lag
+            SH_female_is_lag <- 1 - SH_male_is_lag
+            ST_desiredLabour_isg[,,"female"] <- ST_desiredLabour_is * SH_female_is_lag
+            ST_desiredLabour_isg
+        },
+          dep=c("ST_desiredLabour_i", "SH_skill_is_lag", "SH_male_is_lag")
+          )
+    }
+
+    employedLabour_isg  <- function() {
+        eq({## NOVEL ADDITION TO PREVENT NEGATIVE UNEMPLOYEMNT
+            labourAvailabilityRescalingFactor_sg <- colSums(ST_labourSupply_csg, dims=1)/colSums(ST_desiredLabour_isg, dims=1)
+            rescaling_index <- which(labourAvailabilityRescalingFactor_sg < 1)
+            labourAvailabilityRescalingFactor_sg[-rescaling_index] <- 1
+            labourAvailabilityRescalingFactor_sg[c("child", "cap"),] <- 0
+
+            labourAvailabilityRescalingFactor_isg <- template_industry_isg
+            for(i in 1:length(industry)){
+                labourAvailabilityRescalingFactor_isg[i,,"male"] <- labourAvailabilityRescalingFactor_sg[,"male"]
+                labourAvailabilityRescalingFactor_isg[i,,"female"] <- labourAvailabilityRescalingFactor_sg[,"female"]
+            }
+        
+            ST_labour_isg <- labourAvailabilityRescalingFactor_isg * ST_desiredLabour_isg
+            ST_labour_isg
+        },
+          dep=c("ST_desiredLabour_isg", "ST_labourSupply_csg")
+          )
+    }
+
+We do leave the 0.01 requirement for R_u_s and R_u_sg but we could remove it at a later stage.
+
+ST_labour_i (in vensim L i) is used for :
+
+- hours mean=
+
+- init lab prod (likely duplicate of lambda)
+
+- lab prod (likely duplicate of lambda)
+
+- average wage=
+
+And as hours mean determines among other important variables expected income, we should expect slight changes in result moving from Vensim to R.
+
+## ST_unempLabour_sg
+
+### Problem : magic number in equation
+
+`L u gs[gender,skill]=     max(50000* People 1,labour supply gs[gender,skill]-L gs[gender,skill])     ~   People     ~   number of unemployed people by gender and skill     |`
+
+Plus why would we not simply use the unemployment rate to compute unemployed workers ? Especially because there are magic numbers already in R_u_sg and R_u_s to ensure a minimal rate of unemployment
+
+`R_u_sg[] <- pmax(0.01,                           (ST_labourSupply_sg - ST_labour_sg) /                           (ST_labourSupply_sg + ST_labourJG_sg_lag)                         )`
+
+Plus the fact is that labour in JG should b
+
+### Solution
+
+We use the unemployemnt rate to enhance consistencies but put the old formula as comment as a reminder.
+
+## R_E_s and R_E_sg 
+
+### Problem : inconsistent insertion of labourJG
+
+`e g[gender]=     max(0,sum(L gis[gender,ind!,skill!])/sum(Working age population cgs[cohorts!,gender,\         skill!]))     ~   Dmnl     ~       |`
+
+`e s[skill]=     sum(L is[ind!,skill])/sum(Working age population cgs[cohorts!,gender!,skill])     ~   Dmnl     ~   employment rate by industry by skill     |`
+
+They do not include workers in JG.
+
+`e gs[gender,skill]=     (sum(L gis[gender,ind!,skill])+JG L gs[gender,skill])/sum(Working age population cgs\         [cohorts!,gender,skill])     ~   Dmnl     ~   emplopyment rate by skill by gender     |`
+
+It does include workers in JG.
+
+### Solution : consistent integratino of labourJG in e g and e s
+
+### Problem 2 : Job Guarantee is substracting twice of JG L
+
+#### JG L
+
+\`Transf JG\[gender,skill\]-Out JG L gs\[gender,skill\]\`\`
+
+#### LFRP
+
+`in LFPR gs[gender,skill]+  (Transf JG[gender,skill]-Out JG L gs[gender,skill])/sum(Working age population cgs[cohorts!,gender,skill])`
+
+#### labour supply gs
+
+`LFPR gs[gender,skill] * sum(Working age population cgs[cohorts!,gender,skill])-__JG L gs[gender,skill]__`
+
+#### R_u_s
+
+`max(0.01,( sum(labour supply gs[gender!,skill])-     sum(L is[ind!,skill])         __-sum(JG L gs[gender!,skill])**__          ) /          (sum(labour supply gs[gender!,skill])+sum(JG L gs[gender!,skill])))`
+
+JG is substracted twice : in labour supply and then again in the ratio of the unemployemnt rate (while it should not)
+
+### Solution 2 : removing one substraction
+
+#### labour supply gs
+
+Keep it as is `LFPR gs\[gender,skill\] \* sum(Working age population cgs\[cohorts!,gender,skill\])-JG L gs\[gender,skill\]`
+
+#### R_u_s
+
+`max(0.01,( sum(labour supply gs[gender!,skill])-     sum(L is[ind!,skill])          ) /          (sum(labour supply gs[gender!,skill])+sum(JG L gs[gender!,skill])))`
+
+We remove labourJG in R_u_s
+
+Downside: If you later want to count JG workers as part of labor supply, you would need to redefine labour supply gs. Because labour supply gs already excludes JG workers by definition (see ST_labourSupply_csg
+here).
+
+## R_LFRP2020
+
+### Problem : magic number not summing up to one
+
+In the Vensim model, magic numbers on the basis of ILO real numbers with the apparent purpose to allow for a full recovery of the labour force participation rate in 2022 after the initial 2020 fall.
+
+The issue is that -0.09 + 0.02 + 0.03 is not equal to 1 hence given the magic numebrs themselfs, there is no true recovery.
+
+`set(dp, i = pTo("L"), j = c("Name", "Value"), value = list("R_change2020", -0.09))  ##The rate of change during 1st year covid : DATA FROM ILO, labor force participation rate 2020, 15-64y -0.0248 set(dp, i = pTo("L"), j = c("Name", "Value"), value = list("R_change2021", 0.02))  ##The rate of change during 1st year covid : DATA FROM ILO, labor force participation rate 2021, 15-64y: 0.0061 set(dp, i = pTo("L"), j = c("Name", "Value"), value = list("R_change2022", 0.03))  ##The rate of change during 1st year covid : Assuming complete recover of labor force participation rate to pre-pandemic level \2022, 15-64y: 0.0192`
+
+### Solution : sum them up to one
+
+We correct the numbers to effectively allow for complete recovery.
+
+This amounts to a restoration to ILO original numbers.
+
+`set(dp, i = pTo("L"), j = c("Name", "Value"), value = list("R_change2020", -0.09))  ##The rate of change during 1st year covid : DATA FROM ILO, labor force participation rate 2020, 15-64y -0.0248 set(dp, i = pTo("L"), j = c("Name", "Value"), value = list("R_change2021", 0.06))  ##The rate of change during 1st year covid : DATA FROM ILO, labor force participation rate 2021, 15-64y: 0.0061 set(dp, i = pTo("L"), j = c("Name", "Value"), value = list("R_change2022", 0.03))  ##The rate of change during 1st year covid : Assuming complete recover of labor force participation rate to pre-pandemic level \2022, 15-64y: 0.0192`
+
+## ST_population_csq
+
+### Problem 1 : after 24, no one dies while maturing
+
+`in skills 2544 gs[gender,hig]=     (Skills 1524 gs[gender,hig]/(10*Year 1))*(1+sens skill cs[hig]*(u s[mid]-u s[hig])`
+
+Which apparently implies that unlike pop1524, where maturation is (1 - deathrate)\*Stock, here the whole stock mature without losses (iedeaths). The latter are indeed discounted but out of the current stock and independantly of maturation.
+
+### Solution 1 : matrix unfied treatment
+
+### Rroblme 2 : capitalists actually eating out of the labour force
+
+There is Something Strange with the way capitalists were computed.
+
+They are computed Indeed as 0,01 of the sum of the adult population across skills… but the later is already computed as 0.99 of the original adult population found in the data. So there is i think some logic to improve there. I can try to do it my own way but at any rate we need to be prepared to witness the results of the R model being somewhat different from the vensim model because of this removing of inconsistencies
+
+This may be why teste1 and teste2 fail (they should be equal to one each one of them)
+
+Additionnally : the coming to age are never going into capitalist.
+
+### Solution 2 : matrix unfied treatment
+
+We assumed that they are a skill group : the coming-to-age group is spread accross all skill group and capitalist according to their previous share in the 15-24 cohort (meaning that coming-to-age
+capitalist are 0.01 of the total)
+
+I first considered that they would need to be some autocorrection at each period but the matrix unified treatment allows to maintain the share of 1% of the whole adult population being capitalists.
+
+### Problem 3 : too much smoothing or not enough, depending on who does skill shift
+
+For instance
+
+    in skills 1425 gs[gender,low]=
+        maturation014 g[gender]*
+        ((Skills 1524 gs[gender,low]/sum(Skills 1524 gs[gender,skill!]))
+    ->  __*smooth(__
+        (1 + sens skill cs[low]*(u s[mid]-u s[low])),duration skill transition)
+        +
+        trend entry skill gs[gender,low]) ~~|
+    in skills 1425 gs[gender,hig]=
+        maturation014 g[gender]*
+        ((Skills 1524 gs[gender,hig]/sum(Skills 1524 gs[gender,skill!]))
+        *(1+sens skill cs[hig]*(u s[mid]-u s[hig]))
+        +trend entry skill gs[gender,hig]) ~~|
+    in skills 1425 gs[gender,mid]=
+        maturation014 g[gender]*(1-
+        ((Skills 1524 gs[gender,low]/sum(Skills 1524 gs[gender,skill!]))
+        *(1+sens skill cs[low]*(u s[mid]-u s[low]))
+        +trend entry skill gs[gender,low])
+        -
+        ((Skills 1524 gs[gender,hig]/sum(Skills 1524 gs[gender,skill!]))
+        *(1+sens skill cs[hig]*(u s[mid]-u s[hig]))
+        +trend entry skill gs[gender,hig])
+        )
+
+Another issue is that it is applied to level varibaless (skill group by cohort) but not to their rate of change (in skill 2544) for instance, an exception being the low skill group for the in skills 1425 (but also an issue there was that the smooth function is applied to 1 + reaction to unemployemnt differences and not only to reaction to unemployment differneces)
+
+### Solution : consistently add the smooth() to each skill and cohort group
+
+The skill shift now takes more than one period to complete, for each levels of skilll and each rate of change.
+
+This smoothes the reaction of skill composition of the labour force to unemployment differences.
+
+    smooth_vensim(gp("R_sensSkillShift_csg")[c,,] * diff_u, gp("O_timeSkillTransition")
+
+### Problem 4
+
+The first (French) version of Eurogreen was gender-blind. Hence, the way to compute the births was to get reproductive age population and divide by 2 to get women in age of having children.
+
+Since then, gender has been added, but we did still have :
+
+`F_birth_csg["0-14", "child", ] <- fertility_factor * sum(Pop_lvl[c("15-24", "25-44"), , "female"])*1.3/2`
+
+Note the 1.3 which was apparently an attempt at avoiding strange results (aka not enough newborn babies)
+
+### Solution 4
+
+We simply remove both the \*1.3 and the /2. to get
+
+`F_birth_csg["0-14", "child", ] <- fertility_factor * sum(Pop_lvl[c("15-24", "25-44"), , "female"])`
+
+## SH_male_is
+
+### Problem : potential out of bound (SH_male_is > 1)
+
+If we update SH_male_is only when its level + potential shift exceeds 1, then the update leads to overshoot the boundaries
+
+
+```
+# LEVEL in Vensim
+# initial value is first value, this function allows to compute value for t+1
+shift_MaleLabourShare <- function() {
+    eq({# SH_male_is : male share is
+        factor <- 1
+        shift <- gp("R_sensMaleU_s") * R_diff_u_sg + convergence * gp("R_trendMale_is")
+        if(SH_male_is_lvl + shift > 1){
+            factor <- factor + shift
+        }
+        SH_male_is <- SH_male_is_lvl * factor
+        SH_male_is
+    })
+}
+```
+
+### Solution
+
+We need to update the update criteria. It needs to be different than the shift.
+
+For instance, in R_LFRP_sg_lvl :
+
+```
+else if (R_LFRP_sg_lvl + R_E_sg * R_gExpIncome_sg){
+            factor_sg <- 1 + gp("R_sensLFPRIncome") * R_E_sg
+            factor_csg[,,"male"] <- factor_sg[, "male"]
+            factor_csg[,,"female"] <- factor_sg[, "female"]
+```
+
+We allow the male share to evolve only if the updated value remains within the feasible range [0,1]. If the updated share would exceed 1, we keep the existing value unchanged, reflecting that the market is saturated and preventing unrealistic shares above 100%.
+
+```r
+  # Where is trigger (SH_male_is_lvl * (1 + shift_is) < 1)
+        # whereUpdate is a true/false matrix : we update only if the new computed share does not exceed 1
+        whereUpdate <- (SH_male_is_lvl * (1 + shift_is) < 1)
+        factor_is <- 1 + whereUpdate * shift_is
+        SH_male_is <- SH_male_is_lvl * factor_is
+        SH_male_is
+```
+
+We could further refine implementing one of these alternatives :
+
+* Saturation effect and nonlinear damping: As the male share approaches 1, growth slows down progressively via a nonlinear or saturating function to avoid abrupt cut-offs.
+
+* Adaptive sensitivity adjustment (feedback): If the male share exceeds 1, sensitivity parameters are temporarily reduced to limit further increase, modeling a self-correcting feedback mechanism.
+
+* Stronger inertia / slower adjustment: The speed of change (e.g., convergence rate) decreases as the male share nears its upper limit to prevent unrealistic rapid shifts.
+
+* Threshold-based locking behavior: Above a certain threshold, the male share stops evolving until an external macroeconomic condition changes, representing temporary “locked” states.
+
+### Problem 2
+
+The logic shoul be : when unemployment is higher than female unemployment, the male share in that category decreases accordingly.
+
+However, R_diffGender_u_s is : 
+```
+(max(u gs[male,skill],0)-max(u gs[female\
+		,skill],0))
+```
+and the sensibility being always > 0, it means that when male unemp is higher than female unemp then the male share in said skill should increase. 
+
+### Solution
+
+We add a minus sign : since R_sensMaleU_s is always positive, now when male unemp > female unemp, the effect on the male share by skill and industry is : decrease
+
+```r
+eff_unempMale_s <- - gp("R_sensMaleU_s") * R_diffGender_u_s
+```
+
+

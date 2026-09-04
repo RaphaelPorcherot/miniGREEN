@@ -1,0 +1,600 @@
+---
+jupyter:
+  kernelspec:
+    display_name: R 4.5 (renv)
+    language: R
+    name: r-4.5-renv
+---
+
+```{r}
+#| jupyter: {source_hidden: true}
+# Packages
+suppressPackageStartupMessages({
+
+library(here)
+library(dplyr)
+library(stringr)
+
+    })
+options(jupyter.rich_display = FALSE) # Jupyter renders R output as HTML, not plain text — which is heavier. THis line allows to disable this feature.
+```
+
+```{r}
+#| jupyter: {source_hidden: true}
+# ---STRUCTURAL ELEMENTS IN MAIN MODEL---
+
+source_between_markers <- function(file_path, start_marker, end_marker) {
+  # Read all lines from the file
+  lines <- readLines(file_path, warn = FALSE)
+
+  # Locate the lines containing the start and end markers
+  start <- grep(start_marker, lines)
+  end <- grep(end_marker, lines)
+
+  if (length(start) == 0 || length(end) == 0) {
+    stop("Markers not found in the file.")
+  }
+  if (start >= end) {
+    stop("Start marker appears after end marker.")
+  }
+
+  # Extract lines between the markers (excluding the marker lines themselves)
+  code_lines <- lines[(start + 1):(end - 1)]
+
+  # Evaluate the code in the global environment
+  eval(parse(text = code_lines), envir = .GlobalEnv)
+}
+
+source_between_markers(
+  file_path = here::here("notebooks", "r-nb", "A-prepSteps", "2-structure.r"),
+  start_marker = "## BEGIN Structure",
+  end_marker = "## END Structure"
+)
+```
+
+```{r}
+#| jupyter: {source_hidden: true}
+# ----------------------------------------------------------------------------------------------
+# Function to compare modalities
+compare_modalities <- function(official, extracted, dim_name) {
+  missing_in_extracted <- setdiff(official, extracted)
+  extra_in_extracted <- setdiff(extracted, official)
+  
+  cat("Dimension:", dim_name, "\n")
+  if (length(missing_in_extracted) == 0) {
+    cat("  No missing items in extracted modalities.\n")
+  } else {
+    cat("  Missing in extracted modalities:", paste(missing_in_extracted, collapse = ", "), "\n")
+  }
+  if (length(extra_in_extracted) == 0) {
+    cat("  No extra items in extracted modalities.\n")
+  } else {
+    cat("  Extra items in extracted modalities:", paste(extra_in_extracted, collapse = ", "), "\n")
+  }
+  cat("\n")
+}
+
+# ----------------------------------------------------------------------------------------------
+# Interactive replace function 
+
+replace_keys_recursive <- function(lst, dim_index, old_value, new_value, current_level = 1) {
+  if (current_level == dim_index) {
+    names_lst <- names(lst)
+    if (old_value %in% names_lst) {
+      value <- lst[[old_value]]
+      lst[[old_value]] <- NULL
+      lst[[new_value]] <- value
+    }
+  } else {
+    for (nm in names(lst)) {
+      lst[[nm]] <- replace_keys_recursive(lst[[nm]], dim_index, old_value, new_value, current_level + 1)
+    }
+  }
+  return(lst)
+}
+
+replace_modalite <- function(res, dim_index, old_modalite, new_modalite) {
+  if (old_modalite %in% res$dimensions[[dim_index]]) {
+    res$dimensions[[dim_index]][res$dimensions[[dim_index]] == old_modalite] <- new_modalite
+  } else {
+    warning("Modalities to replace not found in res$dimensions")
+  }
+  res$lookup_tables <- replace_keys_recursive(res$lookup_tables, dim_index, old_modalite, new_modalite)
+  return(res)
+}
+
+interactive_replace <- function(res) {
+  cat("Available dimensions and their modalities:\n")
+  for (i in seq_along(res$dimensions)) {
+    cat(i, ":", names(res$dimensions)[i], "->", paste(res$dimensions[[i]], collapse = ", "), "\n")
+  }
+  flush.console()  # Important here
+  
+  dim_input <- readline(prompt = "Enter the number or name of the dimension to modify: ")
+  
+  if (dim_input %in% names(res$dimensions)) {
+    dim_index <- which(names(res$dimensions) == dim_input)
+  } else if (dim_input %in% as.character(seq_along(res$dimensions))) {
+    dim_index <- as.integer(dim_input)
+  } else {
+    stop("Invalid dimension.")
+  }
+  
+  cat("Current modalities in this dimension:\n")
+  print(res$dimensions[[dim_index]])
+  
+  old_mod <- readline(prompt = "Enter the modality to replace: ")
+  new_mod <- readline(prompt = "Enter the new modality: ")
+  
+  res <- replace_modalite(res, dim_index, old_mod, new_mod)
+  
+  cat("\nUpdated modalities in the dimension:\n")
+  print(res$dimensions[[dim_index]])
+  
+  return(res)
+}
+
+
+
+# sub-functions
+# ----------------------------------------------------------------------------------------------
+# Fonction pour extraire les paires (x, y)
+extract_coords <- function(raw_string) {
+  cleaned <- gsub("^,", "", raw_string)
+  cleaned <- gsub("\\)\\)$", ")", cleaned)
+  pairs <- stringr::str_extract_all(cleaned, "\\([^()]+\\)")[[1]]
+  pairs <- gsub("[()]", "", pairs)
+  lapply(pairs, 
+         function(p) 
+             as.numeric(strsplit(p, ",")[[1]]
+                       )
+         )
+}
+
+
+# Fonction d’insertion récursive dans une liste imbriquée
+assign_nested <- function(lst, keys, value) {
+  if (length(keys) == 1) {
+    lst[[keys]] <- value
+  } else {
+    lst[[keys[1]]] <- assign_nested(lst[[keys[1]]], keys[-1], value)
+  }
+  return(lst)
+}
+
+
+         # ----------------------------------------------------------------------------------------------
+
+flatten_lookup_coords <- function(lookup, dims = NULL, current_dim = 1, path = character()) {
+    if (is.null(lookup)) {
+        return(NULL)
+    }
+
+  # Cas scalaire : liste plate de paires (time, value)
+  if (is.list(lookup) && all(sapply(lookup, function(p) is.numeric(p) && length(p) == 2))) {
+    df <- do.call(rbind, lapply(lookup, function(pair) c(path, pair)))
+    df <- as.data.frame(df, stringsAsFactors = FALSE)
+    if (!is.null(dims)) {
+      names(df) <- c(dims, "x", "y")
+    } else {
+      names(df) <- c("x", "y")
+    }
+    return(df)
+  }
+
+  # Cas récursif
+  if (is.list(lookup)) {
+    dfs <- lapply(names(lookup), function(modal) {
+      flatten_lookup_coords(lookup[[modal]], dims, current_dim + 1, c(path, modal))
+    })
+    return(do.call(rbind, dfs))
+  }
+
+  stop("Unexpected structure in lookup")
+}
+
+# deprecated 
+                                flatten_lookup_coords_depr <- function(lookup, dims, current_dim = 1, path = character()) {
+  if (is.null(lookup)) {
+    return(NULL)
+  }
+  
+  if (is.list(lookup) && is.numeric(lookup[[1]]) && length(lookup[[1]]) == 2) {
+    # On est au dernier niveau : une liste de paires (x, y)
+    df <- do.call(rbind, lapply(lookup, function(pair) {
+      c(path, pair)
+    }))
+    df <- as.data.frame(df, stringsAsFactors = FALSE)
+    names(df) <- c(dims, "x", "y")
+    return(df)
+  }
+  
+  if (is.list(lookup)) {
+    dfs <- lapply(names(lookup), function(modal) {
+      flatten_lookup_coords(lookup[[modal]], dims, current_dim + 1, c(path, modal))
+    })
+    return(do.call(rbind, dfs))
+  }
+  
+  stop("Unexpected structure in lookup")
+}
+
+
+# ----------------------------------------------------------------------------------------------
+
+create_nested_lookup <- function(levels) {
+    if (length(levels) == 1) {
+        return(setNames(vector("list", 
+                               length(levels[[1]])), 
+                        levels[[1]]))
+    } else {
+        return(setNames(
+            lapply(levels[[1]], 
+                   function(x) 
+                       create_nested_lookup(levels[-1])),
+                   levels[[1]]
+                  ))
+               }
+}
+
+# ----------------------------------------------------------------------------------------------
+
+interactive_clean_modalities <- function(res, dim_names) {
+  for (i in seq_along(dim_names)) {
+    dim_name <- dim_names[i]
+    dim_idx <- which(colnames(res) == dim_name)
+
+    if (length(dim_idx) == 0) {
+      warning(sprintf("⚠️ Dimension '%s' not found in res columns.", dim_name))
+      next
+    }
+
+    # Cas spécial : coicop → remplacement automatique des espaces par des underscores
+    if (dim_name == "coicop") {
+      cat(sprintf("\n[Auto-clean] Cleaning spaces in 'coicop' column...\n"))
+      res[[dim_idx]] <- gsub(" ", "_", res[[dim_idx]])
+      next
+    }
+
+    # Vérifie qu'on a bien un objet global avec les modalités officielles
+    if (!exists(dim_name, envir = globalenv())) {
+      warning(sprintf("⚠️ No object named '%s' found in globalenv.", dim_name))
+      next
+    }
+
+    mod_official <- get(dim_name, envir = globalenv())
+    official <- setNames(list(mod_official), dim_name)
+
+    mod_extracted <- unique(res[[dim_idx]])
+    extracted <- list(mod_extracted)
+
+    to_fix <- setdiff(mod_extracted, mod_official)
+
+    if (length(to_fix) > 0) {
+      cat("\n----------------------------------------\n")
+      cat(sprintf("🧩 Dimension: %s\n", dim_name))
+      cat("✅ Official modalities: ", paste(mod_official, collapse = ", "), "\n")
+      cat("❌ Found but not official: ", paste(to_fix, collapse = ", "), "\n")
+      cat("----------------------------------------\n")
+      cat("💡 You can type 'q' or 'quit' to stop the interactive cleaning.\n")
+        flush.console()
+        
+      for (val in to_fix) {
+        prompt <- sprintf("🔄 Enter replacement for '%s' in dimension '%s': ", val, dim_name)
+        new_val <- readline(prompt)
+
+        if (tolower(new_val) %in% c("q", "quit", "exit")) {
+          message("⏹️  Interaction manually stopped by user. Returning partially cleaned result.")
+          return(res)
+        }
+
+        res[[dim_idx]][res[[dim_idx]] == val] <- new_val
+      }
+
+      if (is.factor(res[[dim_idx]])) {
+        res[[dim_idx]] <- droplevels(res[[dim_idx]])
+      }
+    }
+  }
+
+  return(res)
+}
+
+
+export_lookup_res <- function(res, varname) {
+  # Créer le dossier de sortie si nécessaire
+  outputfolder <- here::here("notebooks", "r-nb", "inputs", "lookup/")
+  if (!dir.exists(outputfolder)) {
+    dir.create(outputfolder, recursive = TRUE)
+  }
+  
+  # Construire le chemin complet du fichier
+  export_name <- varname
+  outputpath <- file.path(outputfolder, paste0(export_name, ".csv"))
+  
+  # Ajouter colonne "description"
+  desc <- attributes(res)$desc
+  res$description <- ""
+  res$description[1] <- desc
+  
+  # Réordonner pour que "description" soit en première position
+  res_export <- res[, c("description", setdiff(names(res), "description"))]
+
+  # Forcer uniquement x et y en numeric
+  for (col in c("x", "y")) {
+    if (col %in% names(res_export)) {
+      res_export[[col]] <- as.numeric(res_export[[col]])
+    } else {
+      warning(sprintf("Column '%s' not found in res — skipped numeric conversion.", col))
+    }
+  }
+  
+  # Écriture du fichier
+  write.csv(res_export, outputpath, row.names = FALSE)
+  
+  # Message de confirmation
+  cat("✅ Exported:", export_name, "\n")
+  print(head(res_export[, setdiff(names(res_export), "description")]))
+  message("📂 See ", outputpath, " for details.")
+}
+
+               
+```
+
+```{r}
+#| jupyter: {source_hidden: true}
+# Extractor functions
+# ----------------------------------------------------------------------------------------------
+
+parse_vensim_lookup <- function(file_path, pattern_prefix = NULL, dim_names = NULL) {
+    txt <- readLines(file_path, warn = FALSE)
+    txt <- gsub("\\\\$", "", txt)
+    txt <- paste(txt, collapse = " ")
+    txt <- gsub("\\s+", "", txt)
+    
+    # Cas scalaire : pas de dimensions
+    if (is.null(dim_names)) {
+        name <- str_match(txt, "^([^(]+)\\(")[,2]
+        pairs_raw  <- extract_coords(txt)
+        # get rid of interval 
+        pairs <- pairs_raw[-c(1:2)]
+        df <- flatten_lookup_coords(pairs)  # pas besoin de dims
+        return(list(name = name,
+                    lookup_tables = pairs,
+                    dimensions = list(),
+                    tidy_data = df
+                   ))
+    }
+
+  # Cas multidimensionnel
+  blocks <- unlist(strsplit(txt, "\\)~~\\|"))
+  all_dims <- vector("list", length(dim_names))
+  names(all_dims) <- dim_names
+  all_data <- list()
+
+  pattern_prefix_no_spaces <- gsub("\\s+", "", pattern_prefix)
+  regex_dims <- paste0(pattern_prefix_no_spaces, "\\[([^\\]]+)\\]")
+
+  for (block in blocks) {
+    name_match <- stringr::str_match(block, regex_dims)
+    if (is.na(name_match[1])) next
+
+    dims_found <- trimws(unlist(strsplit(name_match[2], ",")))
+    if (length(dims_found) != length(dim_names)) {
+      warning("Mismatch between found and expected dimensions")
+      next
+    }
+
+    for (i in seq_along(dims_found)) {
+      all_dims[[i]] <- unique(c(all_dims[[i]], dims_found[i]))
+    }
+
+    coords_raw <- stringr::str_match(block, "\\)\\](.+)$")[,2]
+    if (is.na(coords_raw)) next
+
+    coords <- extract_coords(coords_raw)
+    all_data[[paste(dims_found, collapse = "|")]] <- coords
+  }
+
+  lookup_tables <- create_nested_lookup(all_dims)
+
+  for (k in names(all_data)) {
+    keys <- strsplit(k, "\\|")[[1]]
+    lookup_tables <- assign_nested(lookup_tables, keys, all_data[[k]])
+  }
+
+  tidy_data <- flatten_lookup_coords(lookup_tables, dim_names)
+    
+    
+  return(list(
+    lookup_tables = lookup_tables,
+    dimensions = all_dims,
+    tidy_data = tidy_data
+  ))
+}
+
+# ---------------------------------------------------------------------------
+
+parse_vensim_direct_lookup <- function(file_path, pattern_prefix = NULL, dim_names = NULL) {
+  txt <- readLines(file_path, warn = FALSE)
+  
+  # Nettoyage
+  txt <- stringr::str_replace_all(txt, c("\\\\$" = "", "\t" = ""))
+  txt <- stringr::str_c(txt, collapse = "")
+  
+  if (is.null(dim_names)) stop("Scalar case not yet implemented")
+
+# THIS is 1D ********* 
+    
+  # Séparation des blocs de lookup
+  txt <- unlist(stringr::str_split(txt, "\\) ~~\\|"))
+  
+  # Extraction de la description
+  desc <- txt[length(txt)]
+  desc <- stringr::str_replace(desc, ".*?~", "")  
+    
+    txt[length(txt)] <- stringr::str_replace(txt[length(txt)], "\\)\\s*~.*?$", "")  
+
+  # Préparation
+  regex_dims <- paste0(pattern_prefix, "\\[([^\\]]+)\\]")
+  all_dims <- vector("list", length(dim_names))
+  names(all_dims) <- dim_names
+  all_data <- list()
+  
+  for (t in txt) {
+    name_match <- stringr::str_match(t, regex_dims)
+    mod_names <- name_match[2]
+    
+    mod_found <- trimws(unlist(strsplit(mod_names, ",")))
+    n_found <- length(mod_found)
+    
+    # ✅ Check de cohérence du nombre de dimensions
+    if (n_found != length(dim_names)) {
+      stop(sprintf(
+        "Nombre de dimensions trouvé (%d) ne correspond pas au nombre attendu (%d) : %s",
+        n_found, length(dim_names), t
+      ))
+    }
+    
+    coords_raw <- stringr::str_match(t, "\\)\\],(.+)$")[, 2]
+    coords <- extract_coords(coords_raw)
+    
+    for (i in seq_along(mod_found)) {
+      all_dims[[i]] <- unique(c(all_dims[[i]], mod_found[i]))
+    }
+    
+    all_data[[paste(mod_found, collapse = "|")]] <- coords
+  }
+  
+  lookup_tables <- create_nested_lookup(all_dims)
+  
+  for (k in names(all_data)) {
+    keys <- strsplit(k, "\\|")[[1]]
+    lookup_tables <- assign_nested(lookup_tables, keys, all_data[[k]])
+  }
+
+    tidy_data <- flatten_lookup_coords(lookup_tables, dim_names)
+    
+    # Check modalities
+    tidy_data <-  interactive_clean_modalities(tidy_data, dim_names)
+
+  # Ajout description comme attribut
+    attr(tidy_data, "desc") <- desc
+  return(tidy_data)
+}
+```
+
+```{r}
+# ----------------------------------------------------------------------------------
+# parse vensim direct lookup
+# ----------------------------------------------------------------------------------
+
+# 1D 
+#varname <- "SH_consExpFctInc_p"
+#file_path <- paste0("dataLookup/", varname, ".txt")
+#dim_names <- "coicop"
+#pattern_prefix <- "beta fct p"
+
+#"freeETS_i" 
+#varname <- "freeETS_i"
+#file_path <- paste0("dataLookup/", varname, ".txt")
+# dim_names <- "industry"
+# pattern_prefix <- "Free ETS i"
+
+varname <- "minWageAverageChange_gis"
+file_path <- paste0("dataLookup/", varname, ".txt")
+dim_names <- c("gender", "industry", "skill")#"industry" #c("industry")#
+pattern_prefix <- "min wage average change gis"
+
+
+#varname <- "maxWageAverageChange_gis"
+#file_path <- paste0("dataLookup/", varname, ".txt")
+#dim_names <- c("gender", "industry", "skill")#"industry" #c("industry")#
+#pattern_prefix <- "max wage average change gis"
+
+
+# ----------------------------------------------------------------------------------
+# parse vensim lookup
+# ----------------------------------------------------------------------------------
+#varname <- "maxWageAverageChange_gis"
+#file_path <- paste0("dataLookup/", varname, ".txt")
+#dim_names <- c("gender", "industry", "skill")#"industry" #c("industry")#
+#pattern_prefix <- "max wage average change gis"
+
+
+# 1D
+#"priceETSfcst" | "pETS forecast" : dim_names=NULL
+# 2D : dim_names must be given
+#"freeETS_i" | "Free ETS i" : dim_names= "industry"
+# 3D : dim_names must be given
+#varname <- "maxWageAverageChange_gis"
+#file_path <- paste0("dataLookup/", varname, ".txt")
+#dim_names <- c("gender", "industry", "skill")#"industry" #c("industry")#
+#pattern_prefix <- "max wage average change gis"
+# ----------------------------------------------------
+```
+
+```{r}
+# EXTRACT lookup in tidy format !
+#res <- parse_vensim_lookup(file_path, pattern_prefix, dim_names)
+res <- parse_vensim_direct_lookup(file_path, pattern_prefix, dim_names)
+export_lookup_res(res, varname)
+```
+
+```{r}
+#| jupyter: {source_hidden: true}
+# Modalities check 
+
+# Specify dimensions of the underlying object to match modalities
+dim1 <- coicop
+#dim1 <- gender
+#dim2 <- industry
+#dim3 <- skill
+
+official_modalities <- list(industry=dim1)
+#list(gender = dim1, industry = dim2, skill = dim3)
+extracted_modalities <- res$dimensions
+
+## Compare dimensions
+for (dim_name in names(official_modalities)) {
+  compare_modalities(official_modalities[[dim_name]], extracted_modalities[[dim_name]], dim_name)
+}
+
+## Modalities replace 
+#res <- interactive_replace(res)
+
+# Rename modalities if necessary
+#df_coords <- df_coords %>%
+ # mutate(skill = recode(skill, 
+ #                       "mid" = "medium",
+ #                       "hig"="high"
+ #                      )
+ #       )
+```
+
+```{r}
+#| jupyter: {source_hidden: true}
+# Write csv to inputs/folder
+folder_path <- here("notebooks/r-nb/inputs/lookup/")
+
+## as CSV long 
+write.csv(res$tidy_data, 
+          paste0(folder_path,"L_", varname,".csv"), 
+          row.names = FALSE)
+```
+
+```{r}
+#| jupyter: {source_hidden: true}
+### as RDS with approxfun() already set up ready to import
+#lookup_list <- df_coords %>%
+#  group_by(
+#      # put appropriate order (and ofc dimensions)
+#      #gender, 
+#      industry#, 
+#  #    skill
+#  ) %>%
+#  summarise(func = list(approxfun(x, y, rule = 2)), .groups = "drop")
+#
+#saveRDS(lookup_list, file = paste0(folder_path,"L_",varname,".rds"))
+```
+

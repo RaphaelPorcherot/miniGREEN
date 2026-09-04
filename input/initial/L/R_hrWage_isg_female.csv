@@ -1,0 +1,20 @@
+description,industry,child,low,medium,high,cap 
+"wages initial gis : (its a level) - mean hourly wage by skill gender industry GET_DIRECT_CONSTANTS('economy.xlsx', 'labour', 'C36')",agri,0, 5.52364, 9.61248,13.2570,0 
+,mining,0,10.53380,13.29770,17.5772,0 
+,manufacturing,0,10.53380,13.29770,17.5772,0 
+,petroleum,0,10.53380,13.29770,17.5772,0 
+,electricity,0,10.53380,13.29770,17.5772,0 
+,water,0,10.53380,13.29770,17.5772,0 
+,construction,0, 8.70209,13.87690,13.4818,0 
+,trade,0,10.40730,12.20570,15.4729,0 
+,transport,0,10.48640,16.18340,17.2064,0 
+,hospitality,0, 8.49917, 8.72894,13.3299,0 
+,ict,0,11.85880,16.78500,18.3695,0 
+,finance,0,17.83610,19.65010,21.5278,0 
+,realestate,0,11.65590,12.46410,15.4763,0 
+,profserv,0,11.65590,12.46410,15.4763,0 
+,public,0,13.95300,17.31050,23.6436,0 
+,education,0,12.90680,18.72430,22.4953,0 
+,health,0,13.43280,14.99650,20.2955,0 
+,entertainment,0, 8.76254, 9.99021,12.7736,0 
+,otherserv,0, 8.76254, 9.99021,12.7736,0 

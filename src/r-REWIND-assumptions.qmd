@@ -1,0 +1,487 @@
+---
+jupyter: python3
+---
+
+This file is to list all simplifying assumptions made in the model.
+
+*## (name of variable or parameters in question)* \### summary of the
+issue Please copy paste the following template to add a new observation
+
+* **Description** : <describe the issue in few words>
+* **Location** :
+`<code where the simplifying assumption is made, if relevant>`
+* **Suggestion** : \<describe your suggestion in few words \*
+* **Expected
+gain** : <explain which effects would occur in case of realeasing the simplifying assumption>
+
+# Period connectors
+
+* desiredLabour_i (L i)
+* F_GWBill_isg (GWB gis)
+
+
+# Assumptions
+
+# grossPensionBenefits
+
+We assume that retired capitalists do not get any pension benefits from Social Security. This is consistent with the assumption that they are but parasites who never worked their whole life, and must have been saving to build asset-based individual pensions plans. 
+
+However, this specific behavior is not modelled as such. Maybe relevant for the SFC coherency of the whole.
+
+# ST_population_csg is end-of-period | ST_population_dsg 
+
+ST_population_dsg is computed on the basis of male and skill share of the beginning of period.
+
+ST_population_csg is computed on the basis of data almost entirely from the current period, except diff_u that comes ultimately with the desLab that connects periods. 
+
+Hence ST_population_csg is more "remote" from the beginning of period than ST_population_dsg. 
+
+It is not an issue, it is a feature. We however need to be conscious to assume that birth, death, maturation, and more importantly skill shift only occurs at the end of the period. No one lives on amour et eau fraîche for an entire year.
+
+This is important because to compute current value of GPB for instance, we need to take previous population which is called Pop_lvl. See grossPensionBenefits().
+
+## F_Xnom_i
+
+Exogenous growth based on absolute sector-specific growth at the time of init. There is a shift possibliity. 
+
+`F_Xnom_i <- gi("F_Xnom_i") * (1 - gd("elastXp_i") * R_inflation_i) + F_gXnom_i`
+
+There is also another cause : inflation, when high, X decreases.
+
+## SH_enSrc_enDemZ_in 
+
+Act_phaseOut does not phases out endogenous growth : the policy does not totally replace whatever was going on previously. This needs to checked whether desired or not. 
+
+## R_gEnShare_fromPolicy_in
+
+A linear reduction that never shifts once computed. 
+
+```r
+POL_PhaseOutReductionEnShare <- function() {
+    eq({
+        start <- gp("startPolicy")
+        lengthPhaseOut_i <- gp("lengthPhaseOut_i")
+        yearPhaseOut_i <- gp("lengthPhaseOut_i") + start
+        
+        # Store the energy share matrix at the time of policy start
+        if(t==start && gp("Act_phaseOut")==1){
+            set(dp, i = pTo("POLICY"), j = c("Name", "Value"), 
+                value = list("SH_enSrc_atPolStart_in", SH_enSrc_enDemZ_in_lvl))
+        }
+
+        # Get policy start energy shares, used to compute progressive phasing out
+        SH_enSrc_atPolStart_in <- gp("SH_enSrc_atPolStart_in") # NA up until policy start then fixed
+
+        # annual reduction given starting share and legnth phasign
+        annualReduc_in <- sweep(SH_enSrc_atPolStart_in, 2, lengthPhaseOut_i, "/")
+```
+
+We might want actually to have the policy adapts to slightly unexpected structural change (redistribution in energy share as an endogenous outcome of overall reudction, see `r SH_enSrc_enDemZ_in`.
+
+## R_carbonTax 
+
+We assume initial carbon tax to be zero and to initialise if policy triggers it at a value close to the current EU ETS price. THis may need revising and updating as ETS price shift.
+
+```r
+R_carbonTax <- 0 # there is currently no carbon tax
+        if (t >= start && gp("Act_carbonTax") == 1){
+            # current here = 50 euros, clsoe to the current EU ETS price
+            shift <- current + ((target - current)*(t-start)) / (end-start)
+        }
+```
+
+## Free ETS
+
+It has been computed through a lookup function (graphical function): 
+
+from https://www.eea.europa.eu/data-and-maps/dashboards/emissions-trading-viewer-1
+		ASSUMPTION: in 2050 no more free allowances
+		1) mining corresponds to 21  Refining of mineral oil
+		2) petroleum corresponds to 21-99 All industrial installations (excl. combustion)
+		3) electricity corresponds to 20 Combustion of fuels
+
+We may have to update it to account for the passing of time (x-axis). 
+
+## setPrices()
+
+`R_p_i[] <- 1 + R_markup_i * (1 + R_VAT) * R_unitFactorCost_i_lag`
+
+This means that price at `t`results from past costs of previous period.
+
+It does not necessarily mean that consumed in `t` is what has been produced (but not yet sold) in `t-1` but it could be the case. 
+
+This has implications we need to ascertain when computing 
+
+## R_VAT
+
+All sectors have the same VAT rate : the effective mean VAT rate is also the uniform VAT rate.
+
+However in economy.xlsx there a sector-specific `vat effective rates 2010` : why is it not used ?
+
+## F_totalOutputReal_i_lag  == F_totalOutputNom_i_lag 
+
+in first period, prices are assumed to be 1 and :
+
+```
+F_totalOutputReal_i_lag <- gi("F_totalOutputReal_i")   
+F_totalOutputNom_i_lag <- gi("F_totalOutputReal_i")
+```
+
+It would be good to check what is the actual nature of the data that make : `gi("F_totalOutputReal_i")`. Are they nominal or real ? 
+
+Also : why not have a direct measure of y nom delay ? 
+
+
+## R_gLabProdmean_i  R_gLabProdsd_i
+
+The rate of change of labour productivity stems ouf of random draw whose parameters are fixed.
+
+This implies some sort of relative assumptions of the fixity of labour productivity : no radical breakthrough technologically speaking ? 
+
+## F_labourH_i
+
+Under this we assume that there is only full labor hours contacts - no part time jobs.
+
+## Act_BI Basic income
+
+other benefits per cap as well as child benefits are set to zero when
+basic income policy is activated.
+
+However unemployement benefits (`GUB gs`) are not in the current version
+
+# ACT WTR
+
+Working Time Reduction is made without wage compensation : its a pure wage loss for employed
+
+# Act WTR wageComp
+
+This increases the hourly wage to compensate for WTR. Checking whether its SFC is important.
+
+## Act_minWage Act_maxWage
+
+mininm wage policy is lump sum : no progressive entry such as in trendentryskill.
+
++ it makes little sense to assuem a minimum wage in agriculture. Still less so in many sectors since we are assuming full hours conract, which is not the case at all.
+
+## R_sensHrWagePrice vs min max hr wage
+
+R_sensHrWagePrice is max 0.5 (gp("coeff_wageIndex")) while we assume for the time being full wage indexation for minimum and maximum wage.
+
+`R_minHrWage_indexed <- R_minHrWage_lag * (1 + R_inflation_lag)`
+
+We correct that 
+
+```
+priceIndexing_minWage <- function() {
+    eq({# NEW ADDITION
+        R_minHrWage_indexed <- R_minHrWage_lag * (1 + R_inflation_lag) * R_sensHrWagePrice
+    })
+}
+
+priceIndexing_maxWage <- function() {
+    eq({# NEW ADDITION
+        R_maxHrWage_indexed <- R_maxHrWage_lag * (1 + R_inflation_lag) * R_sensHrWagePrice
+    })
+
+```
+
+Now everything is equally indexed. 
+
+Other benefits per capita on the other hand has full indexation.
+
+## 0_coeffWageDispersion_isg
+
+* **Description** : used once to apply effects of min/max wage policy on wage distribution across skill/gender/industry. 
+* **Location** : L module
+* **Suggestion** : if it should be used more than once, for instance to simulate a continuous (as opposed to one shot) impact of these policies on wage distributions in skill/gender/industry, then it should be made somehow endogenous.
+* **Expected
+gain** : <explain which effects would occur in case of realeasing the simplifying assumption>
+
+## R_sensSkillShift_s
+
+### Is exogenous
+
+We dont know where it comes from.
+
+## F_expIncome_sg
+
+### Income expectetion are defined for all kind of ppl
+
+But they are supposed to be only for employed ppl, because they are used
+to update the LFRP.
+
+Implicitely thus we assume that the other kind of incomes are constant
+to variation of labour income. This may be the case, but we need to
+evaluate the hypthesis and consequneces.
+
+    exp inc e gs[gender,skill] :EXCEPT:      [gender,low]=
+        ((1-u gs[gender,skill])*(wage gs[gender,skill]*hours mean)/CPI)/Hours 1
+        +(u gs[gender,skill]*ZIDZ(GUB gs[gender,skill]/CPI,L u gs[gender,skill])*People 1)
+        - Euro 0 ~~|
+    exp inc e gs[gender,low]=
+        (((1-u gs[gender,low])*(wage gs[gender,low]*hours mean)/CPI)/Hours 1)
+        +(u gs[gender,low]*ZIDZ(GUB gs[gender,low]/CPI,L u gs[gender,low])*People 1)
+        +other benefits per cap/CPI
+        ~   Euro
+        ~   -other_benefits_per_cap
+            
+            expected labour income for employed
+
+## R_sensHourWE
+
+### Homogenous
+
+In POL_shift_hourlyWage, we assume uniform sensibility of hourly wage to employemnt across skill, gender, industry.
+
+## R_sensHourWPrice
+
+### Homogenous
+
+In POL_shift_hourlyWage, we assume uniform sensibility of hourly wage to price level across skill, gender, industry.
+
+## R_sensHourWLambda_s
+
+### Differneces in (part of, the rest being sensibility to employment and price) bargaining power only across skills
+
+We assuem same bargaining power across industry and gender, only varying across skills.
+
+## R_LFRP
+
+### Update criteria
+
+Outside of Covid Years, the criterai to update LFPR is
+`LFPR gs[gender,skill]+e gs[gender,skill]*((exp inc e gs[gender,skill]-exp inc e delay gs[gender,skill])/exp inc e delay gs[gender,skill]) > 1`
+
+The economic intuition behind this addition is not clear. It does allow
+to endogenize LFRP to income expectations, but we need to clarify the
+theory behind.
+
+`LFPR = (employed+unemployed)/workingAgePop` `E = employed/workingAgePo`
+
+Hence it boils down to:
+
+`unemployed + employed * (1 + expectationFactor) > workingAgePop`
+
+### Covid on LFRP
+
+`set(dp, i = pTo("L"), j = c("Name", "Value"), value = list("R_change2020", -0.09))  # The rate of change during 1st year covid : DATA FROM ILO, labor force participation rate 2020, 15-64y -0.0248 set(dp, i = pTo("L"), j = c("Name", "Value"), value = list("R_change2021", 0.06))  # The rate of change during 1st year covid : DATA FROM ILO, labor force participation rate 2021, 15-64y: 0.0061 set(dp, i = pTo("L"), j = c("Name", "Value"), value = list("R_change2022", 0.03))  # The rate of change during 1st year covid : Assuming complete recover of labor force participation rate to pre-pandemic level \2022, 15-64y: 0.0192`
+
+We allow full recovery in 2022 aligning with provided ILO statistics.
+
+## R_sensLFPRIncome
+
+### Exogenous sensibilitu of labour force participation rate to income
+
+### Homogenous sensibilitu of labour force participation rate to income across all gender, skills and age groups.
+
+## R_sensMaleU_s
+
+### Exogenous sensibilitu of male share to ratio of unemployment by gender
+
+## R_u_s
+
+### Exogenous minimum amount of (frictional) unemployemnet (THIS IS ALMOST AN INCONSISTENCY)
+
+- **Description** : This reduce the discrepancy between labour by
+  industry and working age population which should lea to *negative*
+  rate of unemployment for low and high skills (which is weird).
+- **Location** :
+  `R_u_s[] <- pmax(0.01,             ( apply(F_labourSupply_csg, c("Skill"),sum) - apply(F_labour_is, "Skill", sum) ) /             ( apply(F_labourSupply_csg, c("Skill"),sum) - apply(F_labourJG_csg, c("Skill"),sum) )           )`
+- **Suggestion** : \<describe your suggestion in few words
+- **Expected gain** :
+  <explain which effects would occur in case of realeasing the simplifying assumption>
+
+## SH_male_is / R_trendMale_is
+
+### exogenous growth trend of the share of males employed by industry and skill
+
+- **Description** : <describe the issue in few words>
+- **Location** :
+  `## SH_male_is : initial share skill by skill in each industry  male share initial is`
+- **Suggestion** : \<describe your suggestion in few words
+- **Expected gain** :
+  <explain which effects would occur in case of realeasing the simplifying assumption>
+
+## SH_UnempCoverage
+
+### Constant
+
+- **Description** : Is a fixed parameter.
+- **Location** : in GOV panel
+- **Suggestion** : We may assume that unemployement benefits coverage
+  ratio evolves with policy measures
+- **Expected gain** :
+  <explain which effects would occur in case of realeasing the simplifying assumption>
+
+## SH_skillDistrib_is
+
+### exogenous trend growth rate skills in indsutry
+
+- **Description** : the trend in changes in skill distribution per
+  industry is exogenous : the trend in changes in skill distribution per
+  industry is exogenous : check job polarization!
+- **Location** : `R_trendSkill_is`
+- **Suggestion** : \<describe your suggestion in few words
+- **Expected gain** :
+  <explain which effects would occur in case of realeasing the simplifying assumption>
+
+## SH_male_is
+
+### Update criteria
+
+In shift_MaleLabourShare :
+
+    dSH_male_is <- ifelse(gp("R_sensMaleU_s") * pmax(diff_u,0) + shift + SH_skill_is_lag > 1,
+                                 0,
+                                 gp("R_sensMaleU_s") * pmax(diff_u,0) + shift 
+                                )
+
+SH_male_is depends of both endogenous differential rates of unemployment
+and exogenous trend in male share, but both evolution are triggered only
+together, never separately.
+
+Why not allow for the exogenous trend to always be the case, adding to
+it the endogenous one when triggered ? That would be similar to
+
+`skillshift <- (1 + gp("R_sensSkillShift_csg")[c,,] * diff_u) + R_trendEntrySkill_csg[c,,]`
+
+Here, if diff_u is zero, then no endogenous shift, but there is always
+the exogenous trend entry skill.
+
+## ST_population_csg :
+
+### Migration built-in
+
+- migration is implicitelu built in the model since we take statstistics
+  to calibrate that inetegrates moderate net migration
+
+### same duration skill shift
+
+Each skill and cohort group undergoes skill shift depending on
+differential rate of unemployment.
+
+We may think it takes less time to move from high to low skill than from
+low to high. We may even make the exact time cohort-dependent.
+
+### Retired ppl still undergo skillshift
+
+- **Description** :
+- **Location** : skillShift_Pop
+- **Suggestion** : This is not necessarily an issue since retired ppl
+  are not counted among the working age population neither are they
+  counted among unemployed. But better to keep that in mind.
+- **Expected gain** :
+
+### fixed number of capitalist as a % of total population :
+
+- **Description** : to create the capitalist class, all classes are
+  reduced to 99% of their original size
+- **Location** : `female_cs <- female_cs * 0.99`
+- **Suggestion** : \<describe your suggestion in few words
+- **Expected gain** :
+  <explain which effects would occur in case of realeasing the simplifying assumption>
+
+### skill distribution
+
+- **Description** : the skill distributions have been altered
+- **Location** : \` previous values were adding up to (slightly) more
+  than 1. I changed a bit, substracting (or summing) from (to) the high
+  skill values.
+- **Suggestion** : \<describe your suggestion in few words
+- **Expected gain** :
+  <explain which effects would occur in case of realeasing the simplifying assumption>
+
+### R_mortality
+
+- **Description** : the coefficient is fixed and does not vary accross
+  skills group (see above)
+- **Location** : `R_mortality`
+- **Suggestion** : Rich people live longer than poor people, with an age
+  gap that is more significant than gender + the mortality rate could be adversely affected by
+  climate change and/or any other indicators of socio-economic
+  devolopment or un or under development
+- **Expected gain** :
+  <explain which effects would occur in case of realeasing the simplifying assumption>
+
+
+### F_birth : weird coeff
+
+- **Description** : arbitrary coefficient increasing the natality rate
+- **Location** :
+  `gp("R_fertility") / (2 * gp("O_reproLife")) * sum(gi("ST_population_csg")[c("15-24", "25-44"), ,"Female"]) * 1.3`
+- **Suggestion** : It has been removed.
+- **Expected gain** :
+  <explain which effects would occur in case of realeasing the simplifying assumption>
+
+### F_birth : Women and men are born in equal amounts - may come to matter depending on the country
+
+- **Description** : birth divided by 2 which means that we assume that
+  women and men are born in equal amounts which is not entirely true
+- **Location** :
+  `gp("R_fertility") / (2 * gp("O_reproLife")) * sum(gi("ST_population_csg")[c("15-24", "25-44"), ,"Female"]) * 1.3`
+- **Suggestion** :
+- **Expected gain** :
+  <explain which effects would occur in case of realeasing the simplifying assumption>
+
+### O_reproLife
+
+- **Description** : the coefficient is fixed
+- **Location** : `O_reproLife`
+- **Suggestion** : the reproductve life could be adversely affected by
+  climate change and/or any other indicators of socio-economic
+  devolopment or un or under development
+- **Expected gain** :
+  <explain which effects would occur in case of realeasing the simplifying assumption>
+
+### R_fertility
+
+- **Description** : the coefficient is fixed
+- **Location** : `R_fertility`
+- **Suggestion** : the fertility rate could be adversely affected by
+  climate change and/or any other indicators of socio-economic
+  devolopment or un or under development
+- **Expected gain** :
+  <explain which effects would occur in case of realeasing the simplifying assumption>
+
+## ST_labourSupply_csg
+
+### Concept
+
+not a problem per se but conceptually it is the labour supply in the
+economy without considering the Job Guarantee Program.
+
+It is thus a partial labour supply.
+
+## ST_labour_isg et F_labourH_I
+
+### annual working hours constant across skills and gender
+
+To compute the distribution of the labour force across skill, gender and
+industry we only take skill and gender share that we apply to the
+assumption that mean annual working hours are industry specific.
+
+This could be important for F_expIncome_sg : since ppl enter into the
+labour supplu only if income expectations are changing ; but this means
+that income expectations are gender and skill blind to the annual
+working hours.
+
+What varies across skill and gender are unemployemne trate and wage
+
+## ST_labour_i 
+
+Capitalists do not adapt production plans
+
+`ST_labour_i <- F_Yreal_i_lag / (R_lambda_i * F_labourH_i )`
+
+This means that the labour by industry is the result of capitalists
+decision that follows this model :
+
+1/ they witness what was the previous period output value 2/ they
+witness technological change impacting labour productivity in current
+period 3/ they witness political decissions affecting the annual working
+hours 4/ they then hire the number of workers necessary to produce the
+same level of output as before given the new parameters
+
+In other words, capitalists do not adapt their production plans, they
+only adapt the hired labour force.
+

@@ -1,0 +1,20 @@
+description,industry,value 
+"For now its fixed but it may become a initial value if endogeneised",agri,0
+,mining,0.03
+,manufacturing,0.03
+,petroleum,0.03
+,electricity,0.03
+,water,0.03
+,construction,0.03
+,trade,0
+,transport,0.03
+,hospitality,0.03
+,ict,0.03
+,finance,0
+,realestate,0.03
+,profserv,0.03
+,public,0.03
+,education,0.03
+,health,0.03
+,entertainment,0.0667864
+,otherserv,0.00272075
