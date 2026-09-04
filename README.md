@@ -185,7 +185,8 @@ deleted — the policies may come back.
 ├── output/                saved runs and snapshots (git-ignored)
 ├── log/                   run logs (git-ignored)
 ├── tool/                  Vensim → R extraction helpers
-└── app/graph/             Shiny dependency-graph viewer
+├── app/graph/             Shiny dependency-graph viewer
+└── docs/EUROGREEN/        Vensim sources and calibration data — see §11.3
 ```
 
 **All paths go through `src/paths.R`.** Never write a literal path in a module.
@@ -780,6 +781,8 @@ under `input/`.
 * `tool/directed_graphs.qmd` — builds the dependency graph consumed by the Shiny
   app
 
+### 11.1 The extraction manifest
+
 **[planned]** The two extraction notebooks are replaced by a single parser driven
 by a **manifest CSV** rather than by interactive `readline()` prompts. One row
 per variable:
@@ -796,7 +799,7 @@ as a by-product, and puts the `mid`/`medium` recoding in one place. The lookup
 scope is now small (four variables), so this is a modest piece of work rather
 than a framework.
 
-### The Shiny dependency viewer
+### 11.2 The Shiny dependency viewer
 
 `app/graph/` renders the model as a directed graph, one node per variable,
 coloured by module. Deployed at <https://rewind.shinyapps.io/graph/>.
@@ -811,6 +814,32 @@ It currently reads dependencies from the attribute attached to each value in
 `d`. Once the `deps` table exists it should read that instead — the attribute is
 tied to a value that gets rewritten every period, so the graph is a by-product
 of the data rather than a queryable object.
+
+### 11.3 Where the numbers come from
+
+`docs/EUROGREEN/` holds the Vensim sources and the calibration data.
+
+| File | What it is |
+|---|---|
+| `vensimModel_noDelete.txt` | the 2025 model as text — for comparing against the 2026 one |
+| `REWIND_2025_v0_EUROGREEN_v2.5_revise.mdl` | the 2025 model, native format |
+| `MODEL_2023_households_v3_w_energy-Pisa-03.26.mdl` | the Pisa branch of the model |
+| `economy.xlsx`, `demography.xlsx`, `environment.xlsx` | the data behind every `GET DIRECT CONSTANTS(...)` in the Vensim source |
+| `calibration_2024.xlsx` | calibration |
+| `indicators.lst` | Vensim indicator list |
+| `_oldM4W/` | the earlier M4W model |
+
+> **The spreadsheets are the authority only for what is not yet imported.**
+> A large part of the inputs has already been extracted, reshaped against a
+> template and stored as individual CSV files under `input/`. Those are done.
+> Do not re-derive a value from `economy.xlsx` when a CSV for it already exists
+> under `input/initial/`, `input/parameter/` or `input/lookup/` — the CSV is the
+> one the model reads, and going back to the spreadsheet risks silently
+> reintroducing a shape or a modality that the template already fixed.
+>
+> The rule when translating a new variable: look in `input/` first. Only if
+> nothing is there do you go to the spreadsheet, and then the extraction goes
+> through `tool/` and the manifest (§11.1) so that it is recorded.
 
 ---
 
@@ -896,13 +925,16 @@ git push -u origin dev/my-thing
 
 ## Sources and references
 
+In this repository — see §11.3 for how to use them:
+
+* `docs/EUROGREEN/` — the Vensim sources and the calibration spreadsheets
+
 Kept outside this repository:
 
-* `vensimModel_noDelete.txt` — the 2025 model, for comparison with the 2026 one
-* `economy.xlsx`, `demography.xlsx`, `environment.xlsx`, `calibration_2024.xlsx` —
-  the calibration spreadsheets. Every `GET DIRECT CONSTANTS('economy.xlsx', ...)`
-  in the Vensim source points at these, so they are the authority for any number
-  imported into `input/`.
+* `r-nb-rewind-docu` — the previous documentation notebook. Superseded by this
+  file for everything except the generated dependency graphs and the "current
+  status" figures; worth revisiting when the Shiny viewer is picked up again
+  (§11.2).
 * DEFINE — a comparable ecological SFC model written in R
 * `sysde` — system dynamics tutorials in R
 * Duggan, *System Dynamics Modeling with R* (2016)
