@@ -222,14 +222,19 @@ would be a lie about the model.
 Common columns: `Name`, `Module`, `Value` (a list column — scalars up to 4D
 arrays), `Description`. `d` adds `Period`.
 
-**[planned]** Three additions:
+Three further columns and one further table:
 
-* `Kind` — `state`, `flow` or `aux`. See §6.
+* `Kind` — `state`, `flow` or `aux`. Stamped from the states registry (§6.2).
 * `Region` — one value (`"IT"`) for now. See §10.
-* a separate `deps` table recording, for each variable, what it depends on.
-  Dependencies are currently attached as an attribute on the value; the
-  attribute stays (the Shiny app reads it), but the table is what queries should
-  use, because an attribute lives on a value that is rewritten every period.
+* a separate `deps` table recording, for each variable, what it depends on, with
+  a `Role` of `input` or `parameter`, plus the module and the function it came
+  from.
+
+  Dependencies used to ride as an attribute on the value itself. They no longer
+  do. An attribute on a value that gets rewritten every period is metadata
+  pretending to be data: it makes two otherwise identical runs compare unequal,
+  and it means reconstructing the dependency graph requires reading `d` and
+  hoping the right period is still there. The table is the single source.
 
 `Scenario` will become a column of `d` when scenarios arrive.
 
@@ -243,15 +248,36 @@ arrays), `Description`. `d` adds `Period`.
 | `gd(name, t)` | read one variable at one period from `d` |
 | `gda(name, from, to)` | read a variable over a window of periods |
 
-Writes go through `eq()` (see below), not by hand.
+All five take an optional `info` of `"all"`, `"desc"`, `"mod"`, `"kind"` or
+`"region"` to get the row or one of its metadata columns instead of the value.
 
-**[planned] Performance.** `d` is pre-allocated at ~110 000 rows. The current
-`To()` / `pTo()` / `iTo()` / `lTo()` family finds the next free row by scanning
-the whole table on every single write — measured at 4.2 s per 1000 calls, which
-is roughly nine minutes of pure scanning for a full 61-period run. They are
-replaced by an **O(1) cursor** per `(Module, Period)` block: ~300× faster.
-Reads use a `(Name, Period)` key and are windowed — the model never needs the
-whole history, only a few recent periods.
+`gda()` returns a vector when every period holds a scalar, a matrix
+(periods × elements) when they are same-length vectors, and the raw list
+otherwise. Pass `from` and `to`: the model never needs the whole history, only
+a few recent periods.
+
+**Writes go through `dt_set()`, and nothing else.**
+
+```r
+dt_set("d", module = "DEM", name = "ST_population_csg", value = x, period = t)
+```
+
+It fills the next free row of the right block and registers it. Calling `set()`
+directly on one of the four tables leaves the registry stale and breaks every
+subsequent read — in a module you never do either, because `eq()` writes for
+you.
+
+**Performance.** `d` is pre-allocated at ~110 000 rows. Finding the next free
+row by scanning it, as the old `To()` family did, cost 4.9 s per 1000 writes —
+roughly nine minutes of pure scanning over a full 61-period run. A cursor per
+`(Module, Period)` block replaces the scan, and a registry maps
+`(Name, Period)` to a row index for reads. Neither ever touches the table.
+Measured on this model:
+
+| | before | after |
+|---|---|---|
+| allocate a row (1000×) | 4.95 s | 0.023 s — **215×** |
+| read a variable (500×) | 1.06 s | 0.021 s — **50×** |
 
 ### 4.3 `eq()` — the contract
 
@@ -821,10 +847,16 @@ runApp()
 deployApp()
 ```
 
-It currently reads dependencies from the attribute attached to each value in
-`d`. Once the `deps` table exists it should read that instead — the attribute is
-tied to a value that gets rewritten every period, so the graph is a by-product
-of the data rather than a queryable object.
+It reads its edges from the `deps` table:
+
+```r
+edges_df <- deps[Role == "input", .(from = Dependency, to = Variable)]
+```
+
+Only `input` edges are drawn; a `parameter` role is a constant from `dp`, which
+would clutter the graph without informing it. The app itself has not been
+touched since the refactoring began and is expected to need work — that comes
+last, once the model is complete.
 
 ### 11.3 Where the numbers come from
 
@@ -910,6 +942,8 @@ git push -u origin dev/my-thing
 * **`gd(var, time)` ignored its `time` argument.** The filter read
   `Period == Period`, which is always true, and the function returned the first
   period's value. It appeared to work only because the time loop had never run.
+  Every `gd(x, t-1)` in `I.r` and in `run_model.r` would have silently returned
+  2010 values the day the loop was added.
 * **`gd(..., info=)` queried `lookup` instead of `d`.**
 * **`smooth_vensim()` returned a wrong result for `t > startYear`** (§8).
 * `loadFill()` used `next` inside a `tryCatch` handler, which is not a loop, and
@@ -923,6 +957,13 @@ git push -u origin dev/my-thing
   which also removes the need for `toKeep0/1/2`.
 * `toKeep`, a mutable global appended to with `<<-` from a dozen places,
   replaced by a registry environment populated by the loaders themselves.
+* `_0verbose.R` was capitalised while all thirteen modules sourced it as `.r`.
+  That only worked because macOS has a case-insensitive filesystem; it would
+  have failed on Linux.
+* `pryr` no longer builds on R 4.6. Its single use, `mem_used()`, moved to
+  `lobstr`.
+* A block that runs out of pre-allocated rows now says which block, how big it
+  was, and which of `npar` / `nvar` / `nlookup` to raise.
 
 ### Open
 

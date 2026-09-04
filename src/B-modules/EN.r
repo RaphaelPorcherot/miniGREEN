@@ -15,7 +15,7 @@ POL_PhaseOutReductionEnShare <- function() {
 
     # Store the energy share matrix at the time of policy start
     if(t == start && gp("Act_phaseOut") == 1){
-      set(dp, i = pTo("POLICY"), j = c("Name", "Value"), value = list("SH_enSrc_atPolStart_in", SH_enSrc_enDemZ_in_lvl))
+      dt_set("dp", module = "POLICY", name = "SH_enSrc_atPolStart_in", value = SH_enSrc_enDemZ_in_lvl)
     }
     # Create output object as matrix of 0
     R_gEnShare_fromPolicy_in <- template_industry_in

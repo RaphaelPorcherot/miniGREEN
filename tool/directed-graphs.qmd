@@ -33,22 +33,19 @@ load(file.path(output_path,"model_only.RData"))
 ```{r}
 #| jupyter: {source_hidden: true}
 # constructing node and edge df
+#
+# Edges come from the `deps` table, which eq() fills as the model runs. They
+# used to be read from an attribute attached to each value in `d`; that
+# attribute is gone (README §4.1) because it rode on data that is rewritten
+# every period. Only "input" edges are drawn — a `parameter` role means a
+# constant from `dp`, which would clutter the graph without informing it.
 all_vars_in_d <- as.character(levels(unique(d$Name)))
 all_vars <- all_vars_in_d
-edges_list <- list()
-for (var in all_vars) {  
-  obj <- gd(var, 2010) 
-  deps <- attr(obj, "deps")
 
-    for (dep in deps) {
-      edges_list <- append(edges_list, list(c(dep, var)))
-    }
-}
-
-## Transformer en data.frame pour DiagrammeR
-edges_df <- do.call(rbind, edges_list)
-colnames(edges_df) <- c("from", "to")
-edges_df <- as.data.frame(edges_df, stringsAsFactors = FALSE)
+edges_df <- as.data.frame(
+  deps[Role == "input", .(from = Dependency, to = Variable)],
+  stringsAsFactors = FALSE
+)
 
 # Adding missing nodes from edges df to nodes df (ie lagged variables)
 missing_from <- edges_df$from[!edges_df$from %in% all_vars]

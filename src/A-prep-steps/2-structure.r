@@ -17,6 +17,17 @@ endYear <- startYear + timePeriods
 ## Note that the first period in the d data.table is 1, not 0. There is thus timePeriods-1 periods of time. In Vensim it starts at 0. So each time there is time condition, we need to increase it by 1 in R.
 covidYears <- c(2020,2021,2022)
 
+# Time step. Annual and discrete for now, but written explicitly everywhere a
+# state is updated, so that the move to a sub-annual step or to RK4 is a change
+# of stepper and not a rewrite of the equations. See README.md §7.
+dt <- 1
+
+# Region. One for now; every table and every input CSV carries the column so
+# that the multi-regional version is a change of content, not of shape.
+# See README.md §10.
+regions        <- c("IT")
+DEFAULT_REGION <- "IT"
+
 #Saving options ####
 #png = 0       #Note: 0 = display; 1 = save plots as png
 #if(png==1){png(file="fig3.png",width=1800,height=2800,res=300)}
@@ -177,6 +188,73 @@ wage_cat <- c(
 
 # macrosect and res
 # macrosect
+
+# ------------------------------------------------------------------------------
+# THE STATES
+# ------------------------------------------------------------------------------
+#
+# The 2026 Vensim model has exactly 35 INTEG variables. That list is closed and
+# is the authority for what carries Kind == "state": a variable that carries its
+# own past, has an initial value, and is advanced by the stepper rather than
+# recomputed from scratch. See README.md §6.
+#
+# `r` is NA where the variable is not translated yet. `integ_rationale` is
+# filled only where the economic reading and the numerical one diverge — a share
+# that is nonetheless a state — and says in one line why it must integrate.
+
+model_states <- data.frame(
+  stringsAsFactors = FALSE,
+  vensim = c(
+    "Pop 014 g / Pop 1524 g / Pop 2544 g / Pop 4564 g / Pop 65+ g / Skills {1524,2544,4564,65+} gs",
+    "LFPR gs",
+    "wage gis",
+    "male share is",
+    "skill trend is",
+    "K i",
+    "Share source Ed Z nrg i",
+    "I desired i",
+    "gov c nom i",
+    "prob T2 i",
+    "prob T3 i",
+    "adaptation",
+    "stock of bonds",
+    "interest",
+    "debt i",
+    "b cap", "b gs", "d cap", "d gs", "eq cap", "eq gs"
+  ),
+  r = c(
+    "ST_population_csg",
+    "R_LFRP_csg",
+    "R_hrWage_isg",
+    "SH_male_is",
+    "SH_skill_is",
+    "ST_Kreal_i",
+    "SH_enSrc_enDemZ_in",
+    NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA
+  ),
+  module = c(
+    "DEM", "L", "L", "L", "L", "I", "EN",
+    "I", "GOV", "TECH", "TECH", "CADA",
+    "FI", "FI", "FI", "FI", "FI", "FI", "FI", "FI", "FI"
+  ),
+  integ_rationale = c(
+    NA,
+    NA,
+    NA,
+    "A share economically. The inflow contains a saturation guard that reads the stock itself (IF THEN ELSE(... + male share is > 1, 0, ...)), so it is self-referential and genuinely path-dependent. Cannot be an auxiliary.",
+    "A share economically. Its inflow is purely exogenous (convergence * trend), so a closed-form cumulative sum would work. Kept as a state for uniform treatment only.",
+    NA,
+    "A share economically. The inflow reads the stock: -g(t) * ZIDZ(Share[nrg], 1 - Share[renew]). Making it an auxiliary would create an algebraic loop, and the model is sequentially solvable precisely because this one is not.",
+    NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA
+  )
+)
+
+## Kind of a variable, from the states registry (README §6.2).
+## Everything not registered as a state is an auxiliary for now; the flow/state
+## split in the equations comes with the stepper.
+variable_kind <- function(name) {
+  if (name %in% stats::na.omit(model_states$r)) "state" else "aux"
+}
 
 # END Dimensions
 

@@ -46,13 +46,23 @@ ref <- readRDS(ref_file)
 setkeyv(ref, c("Period", "Module", "Name"))
 setkeyv(current, c("Period", "Module", "Name"))
 
-if (isTRUE(all.equal(ref, current))) {
+# Compare results, not bookkeeping: Kind, Region and the like are metadata that
+# a refactoring step is allowed to add. They are reported, never a failure.
+id      <- c("Period", "Module", "Name", "Value")
+new_cols <- setdiff(names(current), names(ref))
+old_cols <- setdiff(names(ref), names(current))
+
+if (isTRUE(all.equal(ref[, ..id], current[, ..id]))) {
   cat(sprintf("identical to reference '%s' — %d rows, %d variables\n",
               name, nrow(current), length(unique(current$Name))))
+  if (length(new_cols)) cat("  (new columns:", paste(new_cols, collapse = ", "), ")\n")
+  if (length(old_cols)) cat("  (dropped columns:", paste(old_cols, collapse = ", "), ")\n")
   quit(status = 0)
 }
 
 cat("DIFFERS from reference '", name, "'\n\n", sep = "")
+if (length(new_cols)) cat("  new columns:    ", paste(new_cols, collapse = ", "), "\n")
+if (length(old_cols)) cat("  dropped columns:", paste(old_cols, collapse = ", "), "\n")
 gone  <- setdiff(ref$Name, current$Name)
 added <- setdiff(current$Name, ref$Name)
 if (length(gone))  cat("  no longer computed:", paste(gone, collapse = ", "), "\n")

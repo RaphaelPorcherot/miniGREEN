@@ -63,6 +63,8 @@ create_data_table("d",
   order_by = c("Period", "Module")
 )
 
+deps_reset()   # the dependency table, filled by eq() as equations run
+
 message("see ", log_file, " for details.")
 memory_checkpoint("Preliminary steps")
 
@@ -92,7 +94,7 @@ R_mortality_csg[, ,"male"] <-  temp$male
 R_mortality_csg[, ,"female"] <- temp$female
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-set(dp, i = pTo("DEM"), j = c("Name", "Value"), value = list("R_mortality_csg", R_mortality_csg))
+dt_set("dp", module = "DEM", name = "R_mortality_csg", value = R_mortality_csg)
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
@@ -128,10 +130,10 @@ temp  <- read.csv(file.path(dir, "R_dCrealCovid.csv"), header=TRUE)
 R_dCrealCovid <- temp$changeRate
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-set(dp, i = pTo("L"), j = c("Name", "Value"), value = list("R_dLFRPCovid", R_dLFRPCovid))
-set(dp, i = pTo("L"), j = c("Name", "Value"), value = list("R_dGFCFrealCovid", R_dGFCFrealCovid))
-set(dp, i = pTo("L"), j = c("Name", "Value"), value = list("R_dXnomCovid", R_dXnomCovid))
-set(dp, i = pTo("L"), j = c("Name", "Value"), value = list("R_dCrealCovid", R_dCrealCovid))
+dt_set("dp", module = "L", name = "R_dLFRPCovid", value = R_dLFRPCovid)
+dt_set("dp", module = "L", name = "R_dGFCFrealCovid", value = R_dGFCFrealCovid)
+dt_set("dp", module = "L", name = "R_dXnomCovid", value = R_dXnomCovid)
+dt_set("dp", module = "L", name = "R_dCrealCovid", value = R_dCrealCovid)
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
@@ -187,9 +189,9 @@ ST_population_csg <- population_csg*coeff_population_csg
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-set(init, i = iTo("L"), j = c("Name", "Value"), value = list("ST_labJG_csg", template_population_csg))
-set(init, i = iTo("L"), j = c("Name", "Value"), value = list("R_LFRP_csg", R_LFRP_csg))
-set(init, i = iTo("DEM"), j = c("Name", "Value"), value = list("ST_population_csg", ST_population_csg))
+dt_set("init", module = "L", name = "ST_labJG_csg", value = template_population_csg)
+dt_set("init", module = "L", name = "R_LFRP_csg", value = R_LFRP_csg)
+dt_set("init", module = "DEM", name = "ST_population_csg", value = ST_population_csg)
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 log_message("✅ Parameters, initials, and lookup all loaded.")
 #memory_checkpoint("Step 2.2")
@@ -217,9 +219,8 @@ log_message("✅ Parameters, initials, and lookup all loaded.")
 # max and min of growth of labour productivity by indsutryes
 R_gLabProdMin_i <- gp("R_gLabProdMean_i") - 3 * gp("R_gLabProdSd_i")
 R_gLabProdMax_i <- gp("R_gLabProdMean_i") + 3 * gp("R_gLabProdSd_i")
-set(dp, i = pTo("TECH"), j = c("Name", "Value"), value = list("R_gLabProdMin_i", R_gLabProdMin_i))
-set(dp, i = pTo("TECH"), j = c("Name", "Value"), value = list("R_gLabProdMax_i", R_gLabProdMax_i))
-
+dt_set("dp", module = "TECH", name = "R_gLabProdMin_i", value = R_gLabProdMin_i)
+dt_set("dp", module = "TECH", name = "R_gLabProdMax_i", value = R_gLabProdMax_i)
 #============================================================================
 # STEP 2 — Policy panel: triggers, shocks, shifts
 #============================================================================
@@ -449,7 +450,7 @@ if(t==gp("startYear")){
 }
 
 ### Normalize prices (only first period)
-set(d, i = To("P", gp("startYear")), j = c("Name", "Value"), value = list("R_p_i", 1 + template_industry_i))
+dt_set("d", module = "P", name = "R_p_i", value = 1 + template_industry_i, period = gp("startYear"))
 ### lag's first value is one
 if(t==gp("startYear")){
     R_p_i_lag <- 1 + template_industry_i 

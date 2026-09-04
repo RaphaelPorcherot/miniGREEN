@@ -149,20 +149,34 @@ smooth_vensim <- function(x, delay, dt = 1) {
 # Loading stuff #
 # -----------------------------------------------------------------------------------------------------------
 
-# create init dp lookup and dp ------------------------------------------------------------------------------
+# create init dp lookup and d -------------------------------------------------------------------------------
+#
+# Pre-allocates `n` empty rows per block, a block being one Module (and, for
+# `d`, one Period x Module). Columns:
+#
+#   Name, Value, Description   what the variable is
+#   Kind                       state / flow / aux — how it is computed (README §6.2)
+#   Region                     "IT" for now (README §10)
+#
+# The table is then registered so that writes get an O(1) cursor and reads an
+# O(1) row registry. See THE TABLE LAYER below.
 create_data_table <- function(name, n, cols = list(), order_by = NULL) {
   combinations <- do.call(expand.grid, c(cols, list(Name = rep(NA_character_, n))))
+  nr <- nrow(combinations)
 
-  dt <- data.table(combinations,
-                   Value = rep(list(NA), nrow(combinations)),
-                   Description = rep(list(NA), nrow(combinations)))
+  tbl <- data.table(combinations,
+                    Value       = rep(list(NA), nr),
+                    Description = rep(list(NA), nr),
+                    Kind        = rep(NA_character_, nr),
+                    Region      = rep(DEFAULT_REGION, nr))
 
   # Si order_by est défini, on applique l'ordre
   if (!is.null(order_by)) {
-    do.call(setorder, c(list(dt), order_by))
+    do.call(setorder, c(list(tbl), order_by))
   }
 
-  assign(name, dt, envir = .GlobalEnv)  # Assign to global environment
+  assign(name, tbl, envir = .GlobalEnv)  # Assign to global environment
+  table_register(name)
   toKeep <<- c(toKeep, name)
 }
 
@@ -173,9 +187,8 @@ loadFillPol <- function(name, value, description=NULL) {
   object_name <- name
   filled <- value
   desc <- if(!is.null(description)) description else NA
-  idx <- pTo("POLICY")
 
-  set(dp, i = idx, j = c("Name", "Value", "Description"), value = list(object_name, filled, desc))        
+  dt_set("dp", module = "POLICY", name = object_name, value = filled, description = desc)
 
   invisible(filled)
 }
@@ -316,8 +329,7 @@ load_lookup <- function(name, module, file_path, description = NULL) {
 
   # Assuming 'lookup' is the object in the parent frame
   #lookup <- get("lookup", envir = parent.frame())
-  idx <- lTo(module)
-  set(lookup, i =idx, j = c("Name", "Value", "Description"), value = list(name, list(value), desc))
+  dt_set("lookup", module = module, name = name, value = value, description = desc)
 
   invisible(value)
 }
@@ -408,10 +420,8 @@ loadFill <- function(to_load, input_dir = NULL) {
       if (is.na(filled)) warning(paste0("Scalar '", name, "' has no or NA value after conversion to numeric."))
       desc <- if ("description" %in% names(row)) row$description else NA
 
-      idx <- switch(to_load, parameter = pTo(module), initial = iTo(module))
-      toTable <- switch(to_load, parameter = dp, initial = init)
-
-      set(toTable, i = idx, j = c("Name", "Value", "Description"), value = list(name, filled, desc))
+      toTable <- switch(to_load, parameter = "dp", initial = "init")
+      dt_set(toTable, module = module, name = name, value = filled, description = desc)
     }
   }
 
@@ -521,10 +531,9 @@ loadFill <- function(to_load, input_dir = NULL) {
       )
 
       file <- loader(file_path = file_path, template = template, description = NULL)
-      idx <- switch(to_load, parameter = pTo(module), initial = iTo(module))
-      toTable <- switch(to_load, parameter = dp, initial = init)
+      toTable <- switch(to_load, parameter = "dp", initial = "init")
       name <- ifelse(n_dims==3, file$name, name)
-      set(toTable, i = idx, j = c("Name", "Value", "Description"), value = list(name, file$filled, file$description))
+      dt_set(toTable, module = module, name = name, value = file$filled, description = file$description)
     }
   }
 
@@ -558,253 +567,229 @@ sourceSet <- function(module_name) {
 }
 
 
-# -------------------------------------------------------------------------------------------------------------
-# Set and get stuff #
-# -------------------------------------------------------------------------------------------------------------
+# ==============================================================================
+# THE TABLE LAYER
+# ==============================================================================
+#
+# The four tables (dp, init, lookup, d) are pre-allocated with empty rows,
+# grouped in blocks: one block per Module, and for `d` one per (Period, Module).
+#
+# Writing means filling the next free row of the right block.
+# Reading means finding a row by Name (and Period, for `d`).
+#
+# Both are O(1) and neither ever scans the table:
+#   - a cursor per block holds the next free row,
+#   - a registry maps a row key to its row index.
+#
+# The registry is maintained by dt_set(), which is the only writer. Nothing
+# else may call set() on these tables, or the registry goes stale.
+#
+# See README.md §4.2.
+# ------------------------------------------------------------------------------
 
-# dp datatable ------------------------------------------------------------------------------------------------
+.store <- new.env(parent = emptyenv())
 
-### to use with the set() functions in the data.table dp
+.key <- function(...) paste(..., sep = "\r")
 
-pTo <- function(module) {
-  index <- which(dp$Module == module & is.na(dp$Name))[1]
+# --- registration -------------------------------------------------------------
 
-  if (is.na(index)) {
-    stop("No unmodified line found in the module - consider increasing npar", module)
+## Index a freshly created table: locate its blocks, open a cursor on each.
+table_register <- function(tname) {
+  tbl     <- get(tname, envir = .GlobalEnv)
+  blocks <- if ("Period" %in% names(tbl)) c("Period", "Module") else "Module"
+
+  keys   <- do.call(.key, lapply(blocks, function(cl) as.character(tbl[[cl]])))
+  starts <- which(!duplicated(keys))
+  ends   <- c(starts[-1] - 1L, nrow(tbl))
+
+  e         <- new.env(parent = emptyenv())
+  e$blocks  <- blocks
+  e$cursor  <- new.env(parent = emptyenv())   # block key -> c(next free, last row)
+  e$row     <- new.env(parent = emptyenv())   # row key   -> row index
+
+  for (i in seq_along(starts)) {
+    assign(keys[starts[i]], c(starts[i], ends[i]), envir = e$cursor)
   }
 
-  return(index)
+  assign(tname, e, envir = .store)
+  invisible(e)
 }
 
-### To access values in the parameter datatabl
+## The next free row of a block. O(1). Errors when the block is full.
+table_next_row <- function(tname, module, period = NULL) {
+  e   <- get0(tname, envir = .store)
+  if (is.null(e)) stop("Table '", tname, "' was never registered. Call create_data_table().")
 
-
-gp <- function(param, info = NULL) {
-  valid_choices <- c("all", "desc", "mod")
-
-  if (is.null(info)) {
-    result <- dp[Name == param, Value]
-    if (length(result) == 0) {
-      stop(paste0("Parameter '", param, "' not found in dp. No value found."))
-    }
-    return(result[[1]])
+  k   <- if (is.null(period)) .key(module) else .key(as.character(period), module)
+  cur <- get0(k, envir = e$cursor)
+  if (is.null(cur)) {
+    stop("No block '", gsub("\r", "/", k), "' in '", tname,
+         "'. Is the module declared in `modules` in 2-structure.r?")
   }
-
-  if (!(info %in% valid_choices)) {
-    stop(paste0("Unknown input in info field: '", info, "'. Allowed values are: ", paste(valid_choices, collapse = ", "), "."))
+  if (cur[1] > cur[2]) {
+    stop("Block '", gsub("\r", "/", k), "' of '", tname, "' is full (",
+         cur[2] - cur[1] + 1L, " rows). Increase ",
+         switch(tname, dp = "npar", init = "nvar", lookup = "nlookup", "nvar"),
+         " in 2-structure.r.")
   }
+  assign(k, c(cur[1] + 1L, cur[2]), envir = e$cursor)
+  cur[1]
+}
 
-  result <- dp[Name == param]
-  if (nrow(result) == 0) {
-    stop(paste0("Parameter '", param, "' not found in dp."))
+## Row index of a variable, or NULL. O(1).
+table_row <- function(tname, name, period = NULL) {
+  e <- get0(tname, envir = .store)
+  if (is.null(e)) return(NULL)
+  get0(if (is.null(period)) name else .key(name, as.character(period)), envir = e$row)
+}
+
+## Does this variable exist in the table? O(1).
+table_has <- function(tname, name, period = NULL) !is.null(table_row(tname, name, period))
+
+# --- writing ------------------------------------------------------------------
+
+## The single writer. Fills the next free row of the block and registers it.
+dt_set <- function(tname, module, name, value, description = NA, period = NULL,
+                   kind = NULL, region = DEFAULT_REGION) {
+
+  # Kind comes from the states registry unless the caller states it (README §6.2)
+  if (is.null(kind)) kind <- variable_kind(name)
+
+  tbl <- get(tname, envir = .GlobalEnv)
+  e  <- get(tname, envir = .store)
+  i  <- table_next_row(tname, module, period)
+
+  cols <- c("Name", "Value", "Description", "Kind", "Region")
+  vals <- list(name, list(value), description, kind, region)
+  keep <- cols %in% names(tbl)
+  set(tbl, i = i, j = cols[keep], value = vals[keep])
+
+  # first write wins, as the old is.na(Name) scan did
+  rk <- if (is.null(period)) name else .key(name, as.character(period))
+  if (is.null(get0(rk, envir = e$row))) assign(rk, i, envir = e$row)
+
+  invisible(i)
+}
+
+# --- compatibility shims ------------------------------------------------------
+# Kept so that call sites written against the old API keep working. They only
+# hand out a row index and do NOT register it — prefer dt_set().
+
+pTo <- function(module) table_next_row("dp", module)
+iTo <- function(module) table_next_row("init", module)
+lTo <- function(module) table_next_row("lookup", module)
+To  <- function(module, period) table_next_row("d", module, period)
+
+# --- reading ------------------------------------------------------------------
+
+## Shared body of gp/gi/gl/gd. `what` names the table for error messages.
+.get_from <- function(tname, name, what, info = NULL, period = NULL) {
+  valid <- c("all", "desc", "mod", "kind", "region")
+  where <- if (is.null(period)) "" else paste0(" at period ", period)
+
+  i <- table_row(tname, name, period)
+  if (is.null(i)) stop(what, " '", name, "' not found in `", tname, "`", where, ".")
+
+  tbl <- get(tname, envir = .GlobalEnv)
+  if (is.null(info)) return(tbl$Value[[i]])
+
+  if (!(info %in% valid)) {
+    stop("Unknown `info`: '", info, "'. One of: ", paste(valid, collapse = ", "), ".")
   }
-
   switch(info,
-         all = result[1],
-         desc = {
-           if ("Description" %in% names(result)) {
-             result$Description[[1]]
-           } else {
-             stop("Column 'Description' not found in dp.")
-           }
-         },
-         mod = {
-           if ("Module" %in% names(result)) {
-             result$Module[[1]]
-           } else {
-             stop("Column 'Module' not found in dp.")
-           }
-         }
+    all    = tbl[i],
+    desc   = tbl$Description[[i]],
+    mod    = as.character(tbl$Module[[i]]),
+    kind   = tbl$Kind[[i]],
+    region = tbl$Region[[i]]
   )
 }
 
-# init datatable ----------------------------------------------------------------------------------------------   
+gp <- function(param,    info = NULL) .get_from("dp",     param,    "Parameter",         info)
+gi <- function(var,      info = NULL) .get_from("init",   var,      "Initial value",     info)
+gl <- function(graphfun, info = NULL) .get_from("lookup", graphfun, "Graphical function", info)
 
-### to use with the set() functions in the data.table init
-
-iTo <- function(module) {
-  index <- which(init$Module == module & is.na(init$Name))[1]
-
-  if (is.na(index)) {
-    stop("No unmodified line found in the module - consider increasing nvar", module)
-  }
-
-  return(index)
-}
-
-### To access values in the initial value datatable
-
-gi <- function(var, info = NULL) {
-  valid_choices <- c("all", "desc", "mod")
-
-  if (is.null(info)) {
-    result <- init[Name == var, Value]
-    if (length(result) == 0) {
-      stop(paste0("Initial variable '", var, "' not found in init. No value found."))
-    }
-    return(result[[1]])
-  }
-
-  if (!(info %in% valid_choices)) {
-    stop(paste0("Unknown input in info field: '", info, "'. Allowed values are: ", paste(valid_choices, collapse = ", "), "."))
-  }
-
-  result <- init[Name == var]
-  if (nrow(result) == 0) {
-    stop(paste0("Initial variable '", var, "' not found in init."))
-  }
-
-  switch(info,
-         all = result[1],
-         desc = {
-           if ("Description" %in% names(result)) {
-             result$Description[[1]]
-           } else {
-             stop("Column 'Description' not found in init.")
-           }
-         },
-         mod = {
-           if ("Module" %in% names(result)) {
-             result$Module[[1]]
-           } else {
-             stop("Column 'Module' not found in init.")
-           }
-         }
-  )
-}
-
-# lookup datatable --------------------------------------------------------------------------------------------
-
-### to use with the set() functions in the data.table lookup
-
-lTo <- function(module) {
-  index <- which(lookup$Module == module & is.na(lookup$Name))[1]
-
-  if (is.na(index)) {
-    stop("No unmodified line found in the module - consider increasing nlookup", module)
-  }
-
-  return(index)
-}
-
-### To access values in the initial value datatable
-
-gl <- function(graphfun, info = NULL) {
-  valid_choices <- c("all", "desc", "mod")
-
-  if (is.null(info)) {
-    result <- lookup[Name == graphfun, Value]
-    if (length(result) == 0) {
-      stop(paste0("Graphical function '", graphfun, "' not found in lookup. No value found."))
-    }
-    return(result[[1]])
-  }
-
-  if (!(info %in% valid_choices)) {
-    stop(paste0("Unknown input in info field: '", info, "'. Allowed values are: ", paste(valid_choices, collapse = ", "), "."))
-  }
-
-  result <- lookup[Name == graphfun]
-  if (nrow(result) == 0) {
-    stop(paste0("Graphical function '", graphfun, "' not found in lookup."))
-  }
-
-  switch(info,
-         all = result[1],
-         desc = {
-           if ("Description" %in% names(result)) {
-             result$Description[[1]]
-           } else {
-             stop("Column 'Description' not found in lookup.")
-           }
-         },
-         mod = {
-           if ("Module" %in% names(result)) {
-             result$Module[[1]]
-           } else {
-             stop("Column 'Module' not found in lookup.")
-           }
-         }
-  )
-}
-
-# d main datatable --------------------------------------------------------------------------------------------
-
-### to use with the set() functions in the main data.table d
-
-To <- function(module, period) {
-  index <- which(d$Module == module & d$Period == period & is.na(d$Name))[1]
-  if (is.na(index)) {
-    stop("No unmodified line found for Module: ", module, " and Period: ", period, " - consider increasing nvar")
-  }
-
-  return(index)
-}
-
-### To access values in the main d datatable
+## One variable at one period.
+##
+## The `time` argument is honoured. It was not before: the filter read
+## `Period == Period`, which is always TRUE, so gd() always returned the first
+## period. Nothing noticed because the time loop had never run past period one.
 gd <- function(var, time, info = NULL) {
-  valid_choices <- c("all", "desc", "mod")
-
-  if (is.null(info)) {
-    result <- d[Name == var & Period==Period, Value]
-    if (length(result) == 0) {
-      stop(paste0("Variable '", var, "' not found in d. No value found."))
-    }
-    return(result[[1]])
-  }
-
-  if (!(info %in% valid_choices)) {
-    stop(paste0("Unknown input in info field: '", info, "'. Allowed values are: ", paste(valid_choices, collapse = ", "), "."))
-  }
-
-  result <- lookup[Name == var]
-  if (nrow(result) == 0) {
-    stop(paste0("Variable '", var, "' not found in d."))
-  }
-
-  switch(info,
-         all = result[1],
-         desc = {
-           if ("Description" %in% names(result)) {
-             result$Description[[1]]
-           } else {
-             stop("Column 'Description' not found in d")
-           }
-         },
-         mod = {
-           if ("Module" %in% names(result)) {
-             result$Module[[1]]
-           } else {
-             stop("Column 'Module' not found in d")
-           }
-         }
-  )
+  if (missing(time)) stop("gd() needs a period. Use gda() for a whole series.")
+  .get_from("d", var, "Variable", info, period = time)
 }
 
-### To get all the values of a variable in main d datatable
+## A variable over a window of periods.
+##
+## `from` and `to` default to the whole horizon, but the model only ever needs
+## a few recent periods — pass them. Returns a vector when every period holds a
+## scalar, a matrix (periods x elements) when they are same-length vectors, and
+## the raw list otherwise.
+gda <- function(var, from = NULL, to = NULL) {
+  e <- get0("d", envir = .store)
+  if (is.null(e)) stop("Table `d` was never registered.")
 
-gda <- function(var) {
-  result <- d[Name == var, Value]
-
-  # Cas où aucune correspondance
-  if (length(result) == 0) {
-    warning(paste0("Variable '", var, "' not found in main datatable. Returning NA.")) # does not work
-    return(NA)
+  periods <- if (is.null(from) && is.null(to)) {
+    startYear:endYear
+  } else {
+    seq.int(if (is.null(from)) startYear else from,
+            if (is.null(to))   endYear   else to)
   }
 
-  # Si tous les éléments sont de longueur 1 → retourne un vecteur numérique
-  if (all(sapply(result, length) == 1)) {
-    return(as.numeric(unlist(result)))
+  rows <- vapply(periods, function(p) {
+    i <- get0(.key(var, as.character(p)), envir = e$row)
+    if (is.null(i)) NA_integer_ else i
+  }, integer(1))
+  rows <- rows[!is.na(rows)]
+
+  if (!length(rows)) {
+    warning("Variable '", var, "' not found in `d` over the requested window.")
+    return(NULL)
   }
 
-  # Si tous les éléments ont la même longueur > 1 → retourne une matrice
-  len_vecs <- sapply(result, length)
-  if (length(unique(len_vecs)) == 1 && unique(len_vecs) > 1) {
-    return(do.call(rbind, result))  # matrice n x p
-  }
+  out  <- d$Value[rows]
+  lens <- lengths(out)
+  if (all(lens == 1)) return(as.numeric(unlist(out)))
+  if (length(unique(lens)) == 1) return(do.call(rbind, out))
+  out
+}
 
-  # Sinon : retourne tel quel (liste hétérogène, non simplifiable)
-  return(result)
+# --- the dependency table -----------------------------------------------------
+#
+# eq() also attaches dependencies as an attribute on the value it stores, which
+# the Shiny viewer still reads. The attribute lives on a value that is rewritten
+# every period; this table does not, so it is what queries should use.
+
+deps_reset <- function() {
+  assign("deps", data.table(
+    Variable   = character(),
+    Dependency = character(),
+    Role       = character(),   # "input" or "parameter"
+    Module     = character(),
+    Equation   = character()
+  ), envir = .GlobalEnv)
+  assign("deps_seen", new.env(parent = emptyenv()), envir = .GlobalEnv)
+  invisible(NULL)
+}
+
+## Record what an equation depends on. Once per variable: dependencies are
+## structural and do not change from one period to the next.
+deps_record <- function(variable, inputs, parameters, module, equation) {
+  if (!exists("deps", envir = .GlobalEnv)) deps_reset()
+  if (!is.null(get0(variable, envir = get("deps_seen", envir = .GlobalEnv)))) return(invisible(NULL))
+  assign(variable, TRUE, envir = get("deps_seen", envir = .GlobalEnv))
+
+  n <- length(inputs) + length(parameters)
+  if (n == 0) return(invisible(NULL))
+
+  assign("deps", rbindlist(list(get("deps", envir = .GlobalEnv), data.table(
+    Variable   = variable,
+    Dependency = c(inputs, parameters),
+    Role       = rep(c("input", "parameter"), c(length(inputs), length(parameters))),
+    Module     = module,
+    Equation   = equation
+  ))), envir = .GlobalEnv)
+  invisible(NULL)
 }
 
 # -------------------------------------------------------------------------------------------------------------
@@ -1058,8 +1043,12 @@ eq <- function(expr_block, dep = NULL) {
                                paste0("✅ ", func_name, " run with success.",
                                       if (!is.null(target_var)) paste0(" Calculated: ", target_var, ".")))
 
-    # Attach metadata: dependencies, auxiliaries, and function name
-    res <- structure(result, deps = deps, auxiliaries = auxiliaries, equation = func_name)
+    # The value is stored as it is computed. Metadata about the equation —
+    # what it depends on, which module and function it came from — goes to the
+    # `deps` table below, never onto the value itself: an attribute would ride
+    # on something that is rewritten every period, and would silently change
+    # what identical() and all.equal() say about two runs.
+    res <- result
 
     # assign to globlEnv to avoid having to <<- in each eq() bloc
     if (is.null(target_var)) {
@@ -1069,14 +1058,22 @@ eq <- function(expr_block, dep = NULL) {
       assign(target_var, res, envir = .GlobalEnv)
     }
 
+    # Record what this equation depends on. Once per variable: dependencies are
+    # structural, they do not change from one period to the next.
+    deps_record(target_var, deps, auxiliaries, module_name, func_name)
+
     # If in simulation mode, update the data table accordingly
     if (exists("dev_or_run", envir = .GlobalEnv) && dev_or_run == "run") {
 
-      already_defined <- d[Period == t & Module == module_name & Name == target_var, .N] > 0
-
-      if (!already_defined) {
-        set(d, i = To(module_name, t), j = c("Name", "Value"), value = list(target_var, list(res)))
-      } #else { 
+      # O(1) registry lookup, not a scan of the whole table
+      if (!table_has("d", target_var, t)) {
+        dt_set("d",
+               module = module_name,
+               name   = target_var,
+               value  = res,
+               period = t,
+               kind   = variable_kind(target_var))
+      } #else {
       #message(paste0("⚠️ Variable '", target_var, "' already defined for module '", module_name,
       #              "' and period ", t, ". Skipping set()."))
       #} --> THIS PART SHOUDL BE USED AT A LATER STAGE FOR LOGGING PURPOSES
