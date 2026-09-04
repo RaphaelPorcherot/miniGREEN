@@ -63,7 +63,7 @@ POL_shift_hourlyWage <- function(){# That must be real hourly wages. Yet if this
       # Intensity of the reaction of average wages to the fact that the minimum wage moves away from the average.
       intensityChangeMean <- template_industry_isg
       for (g in gender) {
-        for (s in skill) {
+        for (s in pop_group) {
 
           # Zero column for fake skills
           if (s %in% c("child", "cap")) {
@@ -75,7 +75,7 @@ POL_shift_hourlyWage <- function(){# That must be real hourly wages. Yet if this
             gap_value <- gap_minToMeanWage_isg[i, s, g]
             # Skip si NA, NaN, ou Inf
             if (is.na(gap_value) || is.infinite(gap_value)) {
-              intensityChangeMean[industry, skill, gender] <- 0
+              intensityChangeMean[industry, pop_group, gender] <- 0
               next
             }
 
@@ -106,7 +106,7 @@ POL_shift_hourlyWage <- function(){# That must be real hourly wages. Yet if this
       gap_maxToMeanWage_isg <- diff_maxToMeanWage_isg / (gp("coeffWageDispersion_isg") * R_hrWage_isg_lvl)
       intensityChangeMean <- template_industry_isg
       for (g in gender) {
-        for (s in skill) {
+        for (s in pop_group) {
 
           # Zero column for fake skills
           if (s %in% c("child", "cap")) {
@@ -118,7 +118,7 @@ POL_shift_hourlyWage <- function(){# That must be real hourly wages. Yet if this
             gap_value <- gap_maxToMeanWage_isg[i, s, g]
             # Skip si NA, NaN, ou Inf
             if (is.na(gap_value) || is.infinite(gap_value)) {
-              intensityChangeMean[industry, skill, gender] <- 0
+              intensityChangeMean[industry, pop_group, gender] <- 0
               next
             }
 

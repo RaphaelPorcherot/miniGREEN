@@ -97,8 +97,20 @@ industry <- c("agri",
 cohort <- c("0-14", "15-24", "25-44",  "45-64", "65+")
 # Gender
 gender <- c("male", "female")
-# Skill
-skill <- c("child", "low", "medium", "high", "cap")
+# PopGroup — the partition of the population.
+#
+# It folds three different things into one dimension: a generational status
+# (`child`, does not work yet), an actual qualification level (`low`, `medium`,
+# `high`) and a class status (`cap`, capitalist). That is deliberate: the
+# alternative, a separate `class` dimension, would be a mostly-empty Cartesian
+# product, since a capitalist has no qualification level.
+#
+# The price is that "summing over the dimension" has no single meaning. So the
+# genuine qualifications are available as a named subset, and code indexes by
+# name — never by position, never by hand-written exclusion. See README.md §5.3.
+pop_group <- c("child", "low", "medium", "high", "cap")
+skill     <- c("low", "medium", "high")            # the actual qualifications
+non_skill <- setdiff(pop_group, skill)             # child and cap
 # Status : we have an enlarged definition of olf that includes non retired cap and child
 status <-  c("emp", # employed (LabEmp + LabJG)
              "unemp", # unemployed unempLab
@@ -146,20 +158,20 @@ name_bracket <- paste0("incTax_",1:n_incomeTaxBracket)
 
 # IncomeGroup : composite dimension made of : status, skill, cohort
 # gini order
-df <- expand.grid(skill=skill,
+df <- expand.grid(pop_group=pop_group,
                   status=status,
                   gender=gender) %>% 
-arrange(status, gender, skill)
+arrange(status, gender, pop_group)
 
-df <- df %>% filter(!(skill == "child"))  
+df <- df %>% filter(!(pop_group == "child"))  
 df_grouped <- df %>% 
   mutate(group = case_when(
-                           skill == "cap" ~ "cap",  # Tous les cap ensemble
+                           pop_group == "cap" ~ "cap",  # Tous les cap ensemble
                            #status == "pension" ~ paste0("pension_", gender),  # Pension par genre
-                           TRUE ~ paste(skill, status, gender, sep = "_")  # Autres : combinaison complète
+                           TRUE ~ paste(pop_group, status, gender, sep = "_")  # Autres : combinaison complète
                   )
   )
-df_grouped <- df_grouped %>% select(skill, status, gender, group)
+df_grouped <- df_grouped %>% select(pop_group, status, gender, group)
 income_group <- unique(df_grouped$group)
 income_group <- c(
                   grep("^low", income_group, value = TRUE),
@@ -172,11 +184,12 @@ income_group <- c(
 # WageCategory : composite dimension made of : status, skill, cohort
 # categories of wage earners used to compute gini of labor market. employed workers arranged according to gender, industry and skill.
 # gini w order
+# Only actual qualifications here: the Vensim original filtered child and cap
+# out of the full partition, which is exactly what `skill` now is.
 df <- expand.grid(gender=gender,
                   industry=industry,
                   skill=skill) %>% 
 arrange(gender, industry, skill)
-df <- df %>% filter(!(skill %in% c("child", "cap")))   
 df_grouped <- df %>% mutate(group = paste(gender, industry, skill, sep = "_"))
 df_grouped <- df_grouped %>% select(gender, industry, skill, group)
 wage_cat <- unique(df_grouped$group)
@@ -272,161 +285,95 @@ yearsCohort_c <- upper_bounds - lower_bounds
 yearsCohort_c <- yearsCohort_c+1
 yearsCohort_c[length(yearsCohort_c)] <- NA
 
-# Template arrays
-# Notice the big cap for the dimension names (Cohort, Gender etc) 
-# and the small caps for the modalities in each dimension (low, male, agri etc.)  
+# ------------------------------------------------------------------------------
+# TEMPLATES
+# ------------------------------------------------------------------------------
+#
+# Every array in the model is built from a named template, so that dimension
+# names travel with the data and a mismatch fails loudly instead of recycling
+# silently.
+#
+# make_template() takes dimension NAMES (capitalised) and looks their modalities
+# up in `dimension_modalities`. Writing them out by hand, as this file used to,
+# meant that adding a dimension — a Region index, say — was twenty edits plus
+# every loader. Now it is one.
+#
+#   make_template(c("Cohort", "PopGroup", "Gender"))
+#
+# The name of a template encodes its indices with the suffix letters of
+# README.md §5.2, in the same order as its dimensions.
+
+dimension_modalities <- list(
+  Industry     = industry,
+  Cohort       = cohort,
+  Gender       = gender,
+  PopGroup     = pop_group,
+  Skill        = skill,
+  Status       = status,
+  Technology   = technology,
+  EnergySource = energy_source,
+  EnergyUse    = energy_use,
+  Asset        = asset,
+  COICOP       = coicop,
+  TimeUse      = timeuse,
+  Bracket      = name_bracket,
+  IncomeGroup  = income_group,
+  WageCat      = wage_cat,
+  Region       = regions
+)
+
+## Build a named, zero-filled array from a vector of dimension names.
+## A name may repeat: make_template(c("Industry", "Industry")) is the IO matrix.
+make_template <- function(dims, fill = 0) {
+  unknown <- setdiff(dims, names(dimension_modalities))
+  if (length(unknown)) {
+    stop("Unknown dimension(s): ", paste(unknown, collapse = ", "),
+         ".\nKnown: ", paste(names(dimension_modalities), collapse = ", "), ".")
+  }
+  modalities        <- dimension_modalities[dims]
+  names(modalities) <- dims          # keep duplicates, e.g. Industry x Industry
+  # unname(): lengths() returns a *named* vector, which would put names on the
+  # dim attribute itself and make otherwise identical arrays compare unequal.
+  array(fill, dim = unname(lengths(modalities)), dimnames = modalities)
+}
 
 # --------------------------------------------------------------------------------
 # Miscellaneous
 # --------------------------------------------------------------------------------
 
-# ~~|
-# 1D| ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-# ~~|
-
-# energy source
-template_energy_n <- array(0,
-                           dim = c(length(energy_source)),
-                           dimnames = list(EnergySource=energy_source)
-)
-
-# energy use
-
-# special template
-template_incometax <- array(0, 
-                            dim = c(length(name_bracket)),
-                            dimnames = list(Bracket=name_bracket) 
-)
-
+template_energy_n  <- make_template("EnergySource")
+template_incometax <- make_template("Bracket")
 
 # --------------------------------------------------------------------------------
 # Population
 # --------------------------------------------------------------------------------
 
-# ~~|
-# 3D| ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-# ~~|
-
-template_population_csg <- array(0, 
-                                 dim = c(length(cohort), length(skill), length(gender)),
-                                 dimnames = list(Cohort = cohort, Skill = skill, Gender = gender)
-)
-
-template_population_dsg <- array(0, 
-                                 dim = c(length(status), length(skill), length(gender)),
-                                 dimnames = list(Status = status, Skill = skill, Gender = gender)
-)
-
-# ~~|
-# 2D| ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
-# ~~|
-
-template_population_sg <- array(0, 
-                                dim = c(length(skill), length(gender)),
-                                dimnames = list(Skill = skill, Gender=gender)
-)
-
-template_population_dp <- array(0, 
-                                dim = c(length(income_group), length(coicop)),
-                                dimnames = list(IncomeGroup = income_group,COICOP=coicop)
-)
-
-template_population_ds <- array(0,
-                                dim = c(length(status), length(skill)),
-                                dimnames = list(Status=status, Skill=skill)
-)
-
-
-# ~~|
-# 1D| ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-# ~~|
-
-template_population_s <- array(0,
-                               dim = c(length(skill)),
-                               dimnames = list(Skill=skill)
-)
-
-template_population_d <- array(0,
-                               dim = c(length(status)),
-                               dimnames = list(Status=status)
-)
-
+template_population_csg <- make_template(c("Cohort", "PopGroup", "Gender"))
+template_population_dsg <- make_template(c("Status", "PopGroup", "Gender"))
+template_population_sg  <- make_template(c("PopGroup", "Gender"))
+template_population_ds  <- make_template(c("Status", "PopGroup"))
+template_population_s   <- make_template("PopGroup")
+template_population_d   <- make_template("Status")
+template_population_dp  <- make_template(c("IncomeGroup", "COICOP"))
 
 # --------------------------------------------------------------------------------
 # Industry
 # --------------------------------------------------------------------------------
+#
+# There is no child labour and no capitalist labour, but the full PopGroup
+# partition is carried all the same, so that industry arrays cross cleanly with
+# demography arrays (see the Labour module). The `child` and `cap` slices are
+# structurally zero.
 
-# no child labour, no capitalist labour, but we do need the five "skills" for consistency reasons when crossing over demography arrays with industry arrays (see Labour module)
-# Of course, first column (children) and last column (capitalist) will always be zero
-
-# ~~|
-# 4D| ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
-# ~~|
-
-# industry skill technology gender
-template_industry_isvg <- array(0, 
-                                dim = c(length(industry), length(skill), length(technology), length(gender)),
-                                dimnames = list(Industry = industry, Skill = skill, Technology=technology, Gender=gender)
-)
-
-# ~~|
-# 3D| ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-# ~~|
-
-# industry skill technology 
-template_industry_isv <- array(0, 
-                               dim = c(length(industry), length(skill), length(technology)),
-                               dimnames = list(Industry = industry, Skill = skill, Technology=technology)
-)
-
-
-template_industry_isg <- array(0, 
-                               dim = c(length(industry), length(skill), length(gender)),
-                               dimnames = list(Industry = industry, Skill = skill, Gender=gender)
-)
-
-# ~~|
-# 2D| ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-# ~~|
-
-# industry and skill
-template_industry_is <- array(0, 
-                              dim = c(length(industry), length(skill)),
-                              dimnames = list(Industry = industry , Skill = skill)
-)
-
-# industry and technology
-template_industry_iv <- array(0, 
-                              dim = c(length(industry), length(technology)),
-                              dimnames = list(Industry = industry , Technology = technology)
-)
-
-# industry and energy source
-template_industry_in <- array(0, 
-                              dim = c(length(industry), length(energy_source)),
-                              dimnames = list(Industry = industry , EnergySource = energy_source)
-)
-
-# industry from AND industry to (IO)
-template_industry_ii <- array(0, 
-                              dim = c(length(industry), length(industry)),
-                              dimnames = list(Industry = industry , Industry = industry)
-)
-
-# industry (nace) and coicop
-template_industry_ip <- array(0, 
-                              dim = c(length(industry), length(coicop)),
-                              dimnames = list(Industry = industry , COICOP = coicop)
-)
-
-# ~~|
-# 1D| ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-# ~~|
-
-template_industry_i <- array(0,
-                             dim = c(length(industry)),
-                             dimnames = list(Industry=industry)
-)
+template_industry_isvg <- make_template(c("Industry", "PopGroup", "Technology", "Gender"))
+template_industry_isv  <- make_template(c("Industry", "PopGroup", "Technology"))
+template_industry_isg  <- make_template(c("Industry", "PopGroup", "Gender"))
+template_industry_is   <- make_template(c("Industry", "PopGroup"))
+template_industry_iv   <- make_template(c("Industry", "Technology"))
+template_industry_in   <- make_template(c("Industry", "EnergySource"))
+template_industry_ii   <- make_template(c("Industry", "Industry"))
+template_industry_ip   <- make_template(c("Industry", "COICOP"))
+template_industry_i    <- make_template("Industry")
 
 ################################################################################################
 ################################################################################################

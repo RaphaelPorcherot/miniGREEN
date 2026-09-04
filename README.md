@@ -165,6 +165,7 @@ deleted — the policies may come back.
 
 ```
 ├── README.md          this file
+├── MAPPING.md         which R function translates which Vensim equation
 ├── vensim_model_2026.txt  the source of truth for the translation
 ├── src/
 │   ├── paths.r            every path in the project resolves through here
@@ -442,7 +443,11 @@ skills are available as a named subset:
 ```r
 pop_group <- c("child", "low", "medium", "high", "cap")   # the partition
 skill     <- c("low", "medium", "high")                    # actual qualifications
+non_skill <- setdiff(pop_group, skill)                     # child and cap
 ```
+
+The dimension is labelled `PopGroup` in every template's `dimnames`, so the
+label on the data says what the data is.
 
 **Always index by the named subset, never by position or by hand-written
 exclusion.**
@@ -491,15 +496,23 @@ by two or more does.
 Every array in the model is built from a named template, so that dimension names
 travel with the data and mismatches fail loudly instead of recycling silently.
 
-**[planned]** Templates are generated rather than hand-written:
+Templates are generated, not hand-written:
 
 ```r
 template_population_csg <- make_template(c("Cohort", "PopGroup", "Gender"))
+template_industry_ii    <- make_template(c("Industry", "Industry"))
 ```
 
-This replaces ~20 hand-written `array(0, dim = ..., dimnames = ...)` blocks. It
-is also what makes the multi-regional version affordable later (§10): one
-function to change instead of twenty declarations plus every loader.
+`make_template()` takes dimension *names* and looks their modalities up in
+`dimension_modalities`, the single list that maps a capitalised dimension name
+to its levels. A name may repeat — that is how the input-output matrix is built.
+
+This replaces the eighteen hand-written `array(0, dim = ..., dimnames = ...)`
+blocks. It is also what makes the multi-regional version affordable (§10): one
+function to change rather than eighteen declarations plus every loader.
+
+To add a dimension, add one entry to `dimension_modalities`. Nothing else needs
+to know about it.
 
 ---
 

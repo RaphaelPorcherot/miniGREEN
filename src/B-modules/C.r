@@ -43,7 +43,7 @@ currentPopIncomeGroups_dsg <- function() {
                     olf    = ST_inactivePop_sg
     )
     for (status in c("emp", "unemp", "olf")) {
-      for (s in skill) {
+      for (s in pop_group) {
         for (g in gender) {
           ST_population_dsg[status, s, g] <- sources[[status]][s, g]
         }

@@ -56,20 +56,28 @@ maturationOut <- function() {
 }       
 
 maturationIn <- function() {
-  eq({# Create an empty row to align the array dimensions
-    empty_row <- array(0, dim = c(1, length(skill), length(gender)))
-    # Bind the new cohort (those who are maturing into the next cohort) with existing data
-    incomingPop <- abind(empty_row, F_maturationOut_csg[-dim(F_maturationOut_csg)[1], ,], along = 1) 
-    # Index 1 is cohort, so we bind along the cohort dimension
+  eq({
+    # Whoever matures out of a cohort matures into the next one, so the array is
+    # shifted down by one cohort. Nobody matures out of the last cohort (they
+    # die), and nobody matures into the first (they are born), hence the row of
+    # zeros on top and the dropped last row at the bottom.
+    empty_row   <- array(0, dim = c(1, length(pop_group), length(gender)))
+    incomingPop <- abind(empty_row,
+                         F_maturationOut_csg[head(cohort, -1), , ],
+                         along = 1)
     dimnames(incomingPop) <- dimnames(F_maturationOut_csg)
-    ## The point now is to compute a 3D array equivalent in structure to totalPop,
-    ## though not for the whole population but only for the incoming cohort.
-    # Assign the coming-to-age to each skill group, including capitalists
-    incomingPop[2, , "male"] <- incomingPop[2, 1, "male"]
-    incomingPop[2, , "female"] <- incomingPop[2, 1, "female"]
-    # Sum over skills in the other cohorts by cohort and gender
-    incomingPop[3:5, -1, "male"] <- rowSums(incomingPop[3:5,,"male"])
-    incomingPop[3:5, -1, "female"] <- rowSums(incomingPop[3:5,,"female"])
+
+    # Load every population group of a cohort with that cohort's total, which
+    # skillShiftIncomingPop() then splits between groups.
+    #   - into 15-24 they arrive as children, so the total sits in `child`
+    #   - into the cohorts above they arrive already spread, so the total is
+    #     the sum over groups
+    olderCohorts <- setdiff(cohort, c("0-14", "15-24"))
+    for (g in gender) {
+      incomingPop["15-24", , g] <- incomingPop["15-24", "child", g]
+      incomingPop[olderCohorts, setdiff(pop_group, "child"), g] <-
+        rowSums(incomingPop[olderCohorts, , g])
+    }
     incomingPop
   })
 }
@@ -103,22 +111,25 @@ skillShiftIncomingPop <- function() {
     smooth_vector[] <- smooth_vensim(R_diffSkill_u_s * R_sensSkillShift_s,timeSkillTransition)
     smooth_vector_sg <- bind_cols("male"=smooth_vector, "female"=smooth_vector )
 
-    ## First adult cohort with trend entry
-    skillshift_sg <- 1 + smooth_vector_sg + R_trendEntrySkill_sg 
-    c <- "15-24"
-    F_maturationIn_csg <- template_population_csg  
-    for(g in gender){
-      F_maturationIn_csg[c,,g] <- incomingPop[c,,g] * sharesPop_lvl[c,,g] * skillshift_sg[,g]
-    }
-    F_maturationIn_csg[c,"medium",] <- incomingPop[c,2,] - colSums(F_maturationIn_csg[c, c("low", "high", "cap"),])
+    F_maturationIn_csg <- template_population_csg
 
-    ## The rest of the adult cohorts (sans trend entry)
-    skillshift_sg <- 1 + smooth_vector_sg
-    for(c in 3:5){
-      for(g in gender){
-        F_maturationIn_csg[c,,g] <- incomingPop[c,,g] * sharesPop_lvl[c,,g] * skillshift_sg[,g]
+    # `medium` is not shifted: it is backed out as the residual, so that the
+    # groups still add up to the cohort total once `low`, `high` and `cap` have
+    # moved. maturationIn() loaded every non-child group with the cohort total,
+    # so any one of them can be read for it — "low" here.
+    shifted <- setdiff(pop_group, c("child", "medium"))
+
+    for (coh in setdiff(cohort, "0-14")) {
+      # only the first adult cohort also carries the entry trend
+      skillshift_sg <- if (coh == "15-24") 1 + smooth_vector_sg + R_trendEntrySkill_sg
+                       else                1 + smooth_vector_sg
+
+      for (g in gender) {
+        F_maturationIn_csg[coh, , g] <- incomingPop[coh, , g] *
+                                        sharesPop_lvl[coh, , g] * skillshift_sg[, g]
       }
-      F_maturationIn_csg[c,"medium",] <- incomingPop[c,2,] - colSums(F_maturationIn_csg[c, c("low", "high", "cap"),]) 
+      F_maturationIn_csg[coh, "medium", ] <-
+        incomingPop[coh, "low", ] - colSums(F_maturationIn_csg[coh, shifted, ])
     }
     F_maturationIn_csg
   })
@@ -137,11 +148,13 @@ skillShiftAllPop <- function() {
     skillshift_sg <- 1 + smooth_vector_sg 
 
     ## of existing stock (sans trend entry)
-    for(c in 2:5){
-      for(g in gender){
-        Pop_lvl[c,,g] <- Pop_lvl[c,,g] * skillshift_sg[,g]
+    shifted <- setdiff(pop_group, c("child", "medium"))
+    for (coh in setdiff(cohort, "0-14")) {
+      for (g in gender) {
+        Pop_lvl[coh, , g] <- Pop_lvl[coh, , g] * skillshift_sg[, g]
       }
-      Pop_lvl[c,"medium",] <- totalPop[c,2,] - colSums(Pop_lvl[c, c("low", "high", "cap"),])
+      Pop_lvl[coh, "medium", ] <- totalPop[coh, "low", ] -
+                                  colSums(Pop_lvl[coh, shifted, ])
     }
     PopSkillShift <- Pop_lvl
     PopSkillShift
