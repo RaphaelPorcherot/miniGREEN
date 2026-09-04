@@ -1094,11 +1094,36 @@ git push -u origin dev/my-thing
   cohort. Same for several other DEM parameters.
 * Scenarios: a `Scenario` column on `d`.
 * Unit checking. Vensim does dimensional analysis; R does not. Worth adding.
+* **A 2025 ↔ 2026 diff.** The variable-level comparison in §2 was done once, by
+  hand, and is not reproducible. Phase 2 needs it as a tool: for each equation
+  being retranslated, what changed between the two models, so that the
+  difference is read rather than guessed. `TODO(2026)` markers are the
+  short-term stand-in.
+* **Every inconsistency met along the way goes into `inconsistencies_new.md`,
+  fixed or not.** Including the ones the 2026 model already fixed — recorded for
+  memory, so that a later reader knows the question was asked. The rule when
+  retranslating an equation: check `src/inconsistencies.qmd` first, so that a
+  bug already found is not reintroduced.
 * `r-REWIND-inconsistencies.qmd` needs to be replayed against
   `vensim_model_2026.txt`: some of the bugs found may have been fixed upstream,
   some may not, and some of the 2026 simplifications may rest on the buggy
   behaviour. Findings go into `inconsistencies_new.md`.
 * `testthat` for the invariants of §9.2.
+
+---
+
+## Where this is going
+
+| | |
+|---|---|
+| **Phase 1** — the engine | in progress, steps 6 to 10 remain |
+| **Phase 2** — finish the translation against the 2026 model, and rebuild the Shiny viewer | |
+| **Phase 3** — continuous time (§7) | |
+| **Phase 4** — multi-regional (§10) | |
+
+Phases 3 and 4 are what phase 1 is preparing for: `dt` written out and states
+separated from flows for the first, a `Region` column and generated templates
+for the second. Neither is started.
 
 ---
 

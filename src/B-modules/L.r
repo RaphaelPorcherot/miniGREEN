@@ -380,14 +380,25 @@ shift_SkillLabourShare <- function() {
   eq({# SH_skill_is : skill distribution initial is / skill trend delay is / in skill trend is
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ LOGIC CHECK ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    if(!all(rowSums(SH_skill_is_lvl) - 1) < tolerance) {
-      stop("Error: Row sums on SH_skill_is_lvl are not equal to 1 within the allowed tolerance.")
+    # The shares must sum to 1 by industry. This used to read
+    #   !all(rowSums(...) - 1) < tolerance
+    # which coerces the numeric vector to a single logical before comparing, so
+    # it returned FALSE even for a row summing to 3. It never fired.
+    if (!all(abs(rowSums(SH_skill_is_lvl) - 1) < tolerance)) {
+      stop("Row sums on SH_skill_is_lvl are not 1 within tolerance: max deviation ",
+           format(max(abs(rowSums(SH_skill_is_lvl) - 1))))
     }
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    shift_is <- convergence * gp("R_trendSkill_is")
-    factor_is <- 1 + shift_is
-    SH_skill_is <- SH_skill_is_lvl * factor_is
+    # Vensim: skill trend is = INTEG(in skill trend is, initial)
+    #         in skill trend is = convergence * skill distribution trend is
+    #
+    # The flow does not read the state. It used to be applied as
+    # `lvl * (1 + flow)`, which adds `lvl * flow` instead of `flow` and breaks
+    # the sum to 1 above — the trends sum to zero by industry precisely so that
+    # an additive flow conserves it. See inconsistencies_new.md.
+    F_skillShare_is <- convergence * gp("R_trendSkill_is")
+    SH_skill_is     <- SH_skill_is_lvl + F_skillShare_is * dt
     SH_skill_is
   })
 }
@@ -404,11 +415,15 @@ shift_MaleLabourShare <- function() {
     # Addition directe (évite sweep)
     shift_is <- template_industry_is
     shift_is[] <- eff_trendMale_is + eff_unempMale_is 
-    # Where is trigger (SH_male_is_lvl * (1 + shift_is) < 1)
-    # whereUpdate is a true/false matrix : we update only if the new computed share does not exceed 1
-    whereUpdate <- (SH_male_is_lvl * (1 + shift_is) < 1)
-    factor_is <- 1 + whereUpdate * shift_is
-    SH_male_is <- SH_male_is_lvl * factor_is
+    # Vensim: in male share is = IF THEN ELSE(flow + male share is > 1, 0, flow)
+    #
+    # The flow does not read the state; the state only appears in the guard,
+    # which stops a share going above 1. The flow used to be applied as
+    # `lvl * (1 + flow)` — see inconsistencies_new.md.
+    F_maleShare_is <- shift_is
+    F_maleShare_is[(SH_male_is_lvl + shift_is * dt) > 1] <- 0
+
+    SH_male_is <- SH_male_is_lvl + F_maleShare_is * dt
     SH_male_is
   })
 }

@@ -92,14 +92,18 @@ smoothSkillShift <- function() {
   eq({
     input <- R_diffSkill_u_s * gp("R_sensSkillShift_s")
 
-    # SMOOTH initialises to its input; afterwards it relaxes towards it
-    R_smoothSkillShift_s <- if (t == startYear) {
-      input
+    # SMOOTH initialises to its input; afterwards it relaxes towards it.
+    #
+    # Written as a state and its flow, like every other state: the flow of a
+    # SMOOTH is (input - state) / delay, which is what makes it a smooth. It
+    # reads the state, which is allowed — see the note on state updates in
+    # _module-template.r.
+    if (t == startYear) {
+      R_smoothSkillShift_s <- input
     } else {
-      smooth_vensim(input,
-                    prev  = gd("R_smoothSkillShift_s", t - dt),
-                    delay = gp("timeSkillTransition"),
-                    dt    = dt)
+      prev <- gd("R_smoothSkillShift_s", t - dt)
+      F_smoothSkillShift_s <- (input - prev) / gp("timeSkillTransition")
+      R_smoothSkillShift_s <- prev + F_smoothSkillShift_s * dt
     }
     R_smoothSkillShift_s
   })
@@ -184,7 +188,14 @@ skillShiftAllPop <- function() {
 
 endCurrentPeriodPop <- function() {
   eq({
-    ST_population_csg <- PopSkillShift + (F_birth_csg - F_death_csg) + (F_maturationIn_csg - F_maturationOut_csg)
+    # Vensim: Skills XXXX gs = INTEG(Skills * smooth(...) + in - out - deaths)
+    #
+    # The `Skills * smooth(...)` term reads the state, and skillShiftAllPop()
+    # applies it as PopSkillShift = Pop_lvl * (1 + smooth), which is the same
+    # thing: Pop_lvl + Pop_lvl * smooth. The remaining flows are plain.
+    F_population_csg  <- (F_birth_csg - F_death_csg) +
+                         (F_maturationIn_csg - F_maturationOut_csg)
+    ST_population_csg <- PopSkillShift + F_population_csg * dt
     ST_population_csg
   })
 }

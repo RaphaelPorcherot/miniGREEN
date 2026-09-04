@@ -221,6 +221,126 @@ now rather than later.
 
 ---
 
+## `SH_skill_is` and `SH_male_is` — a flow multiplied by its own stock
+
+**Status:** open. It changes results materially, and it is a modelling question
+as much as a translation one.
+**Where:** `src/B-modules/L.r`, `shift_SkillLabourShare()` and
+`shift_MaleLabourShare()`.
+**Found:** step 6 — separating flows from state updates forces the question of
+what the flow actually is.
+
+### Problem
+
+Vensim declares both as `INTEG(flow, initial)` with an **additive** flow:
+
+```
+skill trend is[ind,skill] = INTEG( in skill trend is[ind,skill], initial )
+in skill trend is[ind,skill] = convergence * skill distribution trend is[ind,skill]
+
+male share is[ind,skill]  = INTEG( in male share is[ind,skill], initial )
+in male share is[ind,skill] = IF THEN ELSE(flow + male share is > 1, 0, flow)
+   where flow = sens*(u_m - u_f) + convergence * male share trend is
+```
+
+The R writes both as `level * (1 + flow)`, which is `level + level * flow` —
+the flow scaled by the stock it feeds:
+
+```r
+factor_is   <- 1 + shift_is
+SH_skill_is <- SH_skill_is_lvl * factor_is
+```
+
+The parameters are not compensating for it: `R_trendSkill_is` holds exactly the
+values of the Vensim `skill distribution trend is` TABBED ARRAY.
+
+### Why it matters: the shares stop summing to one
+
+The Vensim trends sum to zero across skills within each industry — deviation
+4e-08, so this is deliberate, not luck. That is what makes an **additive**
+update conserve the sum:
+
+| | one step, max deviation from 1 |
+|---|---|
+| additive (Vensim) | 3.5e-08 |
+| multiplicative (R) | **0.0043** |
+
+Over twenty periods the skill shares drift to between **0.928 and 1.025**
+instead of staying at 1. The additive form stays at exactly 1.
+
+The effect on the dynamics is the other half: the flow is scaled by a share
+between 0 and 0.68, so every skill category drifts more slowly than intended,
+and the smaller a category is in an industry, the more slowly it moves — the
+opposite of a share that is supposed to be catching up.
+
+### And the check that should have caught it cannot fire
+
+`shift_SkillLabourShare()` opens with:
+
+```r
+if (!all(rowSums(SH_skill_is_lvl) - 1) < tolerance) {
+  stop("Error: Row sums on SH_skill_is_lvl are not equal to 1 ...")
+}
+```
+
+The parentheses are misplaced. `all()` receives a numeric vector, coerces it to
+logical — every non-zero value becomes TRUE — and returns a single logical,
+which is then negated and compared to 1e-6. Feed it a row summing to 3 and it
+still returns FALSE. **The check has never fired and cannot.**
+
+```r
+if (!all(abs(rowSums(SH_skill_is_lvl) - 1) < tolerance)) stop(...)   # what was meant
+```
+
+The two are coupled: fixing the check while keeping the multiplicative update
+would make the model stop, because the invariant really is violated.
+
+### What the first pass already says
+
+`src/inconsistencies.qmd` and `src/assumptions.qmd` were searched. Neither
+documents the multiplicative form as a choice. What they do say points the other
+way:
+
+* **`inconsistencies.qmd`, section `SH_skill_is`** — *"initial values add to
+  slightly more than one, a correction has been made but rationale must be
+  provided. […] Additionally **a rescaling check has been introduced into
+  `shift_SkillLabourShare` to make sure that it actually adds up to one by
+  industry**."*
+
+  So the invariant is not an inference from the Vensim: it is the stated intent,
+  and a check was written to enforce it. That check is the one that cannot fire.
+
+* **`inconsistencies.qmd`, section `SH_male_is`** — two problems are raised and
+  fixed, the out-of-bounds guard and the sign of the unemployment effect. But
+  the code quoted there as the *starting point* already reads
+  `SH_male_is <- SH_male_is_lvl * factor`. The multiplicative form predates both
+  fixes and was never the subject of either.
+
+* **`assumptions.qmd`** — the entries on `R_trendSkill_is` and `R_trendMale_is`
+  are template stubs about the trend being exogenous. Nothing on how it is
+  applied.
+
+The multiplicative form therefore looks like an unexamined inheritance rather
+than a decision, and it is incompatible with an invariant the first pass
+explicitly set out to enforce.
+
+### Decision needed
+
+1. **Adopt the additive form**, matching Vensim and restoring the invariant.
+   `SH_skill_is <- SH_skill_is_lvl + shift_is`, and for `SH_male_is` the guard
+   becomes Vensim's `flow + stock > 1` rather than `stock * (1 + flow) < 1`.
+   Changes results for every period after the first. **This is the reading the
+   evidence supports.**
+
+2. **Keep the multiplicative form**, if it turns out to have been deliberate —
+   in which case it needs an entry in `src/assumptions.qmd` saying so, and the
+   sum-to-one check has to go, since the invariant would no longer hold.
+
+Nothing applied either way. The `abs()` fix to the check is held with it, since
+it would fail under option 2.
+
+---
+
 ## `smooth_vensim()` — right in the first period, wrong in every one after
 
 **Status:** fixed.
