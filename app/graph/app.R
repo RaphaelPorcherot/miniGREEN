@@ -31,15 +31,15 @@ set_node_positions <- function(nodes_df) {
   barycenters_y <- seq(0.1, 0.9, length.out = n_modules)
   names(barycenters_y) <- module_levels
   
-  nodes_df <- nodes_df %>%
-    rowwise() %>%
+  nodes_df <- nodes_df |>
+    rowwise() |>
     mutate(
       x = if_else(type == "lag",
                   runif(1, 0, 0.125),
                   runif(1, 0.125, 1)),
       y = barycenters_y[type] + runif(1, -0.05, 0.05)
-    ) %>%
-    ungroup() %>%
+    ) |>
+    ungroup() |>
     mutate(
       y = pmin(pmax(y, 0), 1)  # clamp
     )
@@ -58,7 +58,7 @@ set_focus_positions <- function(nodes_df, edges_df, focus_id, up, down) {
   if (up > 0) {
     current_level <- focus_id
     for (i in 1:up) {
-      parents <- edges_df %>% filter(to %in% current_level) %>% pull(from) %>% unique()
+      parents <- edges_df |> filter(to %in% current_level) |> pull(from) |> unique()
       new_nodes <- setdiff(parents, degrees$id)
       if (length(new_nodes) == 0) break
       degrees <- rbind(degrees, data.frame(id = new_nodes, deg = -i))
@@ -70,7 +70,7 @@ set_focus_positions <- function(nodes_df, edges_df, focus_id, up, down) {
   if (down > 0) {
     current_level <- focus_id
     for (i in 1:down) {
-      children <- edges_df %>% filter(from %in% current_level) %>% pull(to) %>% unique()
+      children <- edges_df |> filter(from %in% current_level) |> pull(to) |> unique()
       new_nodes <- setdiff(children, degrees$id)
       if (length(new_nodes) == 0) break
       degrees <- rbind(degrees, data.frame(id = new_nodes, deg = i))
@@ -78,9 +78,9 @@ set_focus_positions <- function(nodes_df, edges_df, focus_id, up, down) {
     }
   }
   
-  nodes_df <- nodes_df %>%
-    left_join(degrees, by = "id") %>%
-    filter(!is.na(deg)) %>%
+  nodes_df <- nodes_df |>
+    left_join(degrees, by = "id") |>
+    filter(!is.na(deg)) |>
     mutate(deg = pmin(pmax(deg, -5), 5))
   
   # Nombre de zones = 11 (de -5 à 5)
@@ -95,7 +95,7 @@ set_focus_positions <- function(nodes_df, edges_df, focus_id, up, down) {
     start + effective_zone_width / 2  # centre de la zone
   }
   
-  nodes_df <- nodes_df %>%
+  nodes_df <- nodes_df |>
     mutate(
       x=NA, #x = get_x_fixed(deg),
       y = NA  # laisse à la physique gérer Y
@@ -155,7 +155,7 @@ layout_controls <- function(p) {
 apply_layout <- function(net, input, p) {
   g <- function(x) input[[paste0(p, x)]]
   if (isTRUE(g("enable_hierarchical"))) {
-    net %>%
+    net |>
       visHierarchicalLayout(
         direction            = g("hier_direction"),
         levelSeparation      = g("hier_levelsep"),
@@ -165,10 +165,10 @@ apply_layout <- function(net, input, p) {
         edgeMinimization     = g("hier_edgemin"),
         parentCentralization = g("hier_parentcent"),
         sortMethod           = g("hier_sort")
-      ) %>%
+      ) |>
       visPhysics(enabled = FALSE)
   } else if (isTRUE(g("enable_physics"))) {
-    net %>%
+    net |>
       visPhysics(
         enabled       = TRUE,
         solver        = "barnesHut",
@@ -182,7 +182,7 @@ apply_layout <- function(net, input, p) {
         )
       )
   } else {
-    net %>% visPhysics(enabled = FALSE)
+    net |> visPhysics(enabled = FALSE)
   }
 }
 
@@ -248,16 +248,16 @@ server <- function(input, output, session) {
       nodes_sub <- nodes
       edges_sub <- edges
     } else {
-      edges_sub <- edges %>%
+      edges_sub <- edges |>
         filter(from_type == input$select_graph | to_type == input$select_graph)
       
       obj_in_sub <- unique(c(edges_sub$from_name, edges_sub$to_name))
-      nodes_sub <- nodes %>% filter(label %in% obj_in_sub)
+      nodes_sub <- nodes |> filter(label %in% obj_in_sub)
     }
     
     nodes_sub <- set_node_positions(nodes_sub)
     
-    nodes_df <- nodes_sub %>%
+    nodes_df <- nodes_sub |>
       mutate(
         id = id,
         label = label,
@@ -267,10 +267,10 @@ server <- function(input, output, session) {
         x = x,
         y = y,
         shape = if_else(type == "lag", "box", "ellipse")
-      ) %>% select(id, label, group, color, title, x, y, shape)
+      ) |> select(id, label, group, color, title, x, y, shape)
     
-    edges_df <- edges_sub %>%
-      rename(from = from, to = to) %>%
+    edges_df <- edges_sub |>
+      rename(from = from, to = to) |>
       select(from, to)
     
     list(nodes = nodes_df, edges = edges_df)
@@ -279,14 +279,14 @@ server <- function(input, output, session) {
   output$graph <- renderVisNetwork({
     data <- graph_reactive()
     
-    net <- visNetwork(data$nodes, data$edges, height = h, width = w) %>%
+    net <- visNetwork(data$nodes, data$edges, height = h, width = w) |>
       visNodes(fixed = FALSE,
-               font = list(size = 20, face = "arial")) %>%
-      visEdges(arrows = "to") %>%
+               font = list(size = 20, face = "arial")) |>
+      visEdges(arrows = "to") |>
       visOptions(
         highlightNearest = TRUE,
         nodesIdSelection = TRUE
-      ) %>%
+      ) |>
       visInteraction(
         navigationButtons = TRUE,
         zoomView = TRUE,
@@ -296,7 +296,7 @@ server <- function(input, output, session) {
     net <- apply_layout(net, input, "m_")
       
       
-      net <- net %>% visEvents(
+      net <- net |> visEvents(
         selectNode = "function(params) {
           if(params.nodes.length > 0){
             Shiny.setInputValue('clicked_node', params.nodes[0], {priority: 'event'});
@@ -355,7 +355,7 @@ server <- function(input, output, session) {
     if (up > 0) {
       ids_up <- current_id
       for (i in 1:up) {
-        parents <- edges %>% filter(to %in% ids_up) %>% pull(from)
+        parents <- edges |> filter(to %in% ids_up) |> pull(from)
         ids_up <- setdiff(parents, visited)
         visited <- c(visited, ids_up)
         ids <- c(ids, ids_up)
@@ -365,7 +365,7 @@ server <- function(input, output, session) {
     if (down > 0) {
       ids_down <- current_id
       for (i in 1:down) {
-        children <- edges %>% filter(from %in% ids_down) %>% pull(to)
+        children <- edges |> filter(from %in% ids_down) |> pull(to)
         ids_down <- setdiff(children, visited)
         visited <- c(visited, ids_down)
         ids <- c(ids, ids_down)
@@ -374,14 +374,14 @@ server <- function(input, output, session) {
     
     ids <- unique(ids)
     
-    nodes_sub <- nodes %>% filter(id %in% ids) %>% mutate(shape = if_else(label == current_label, "star", if_else(type == "lag", "box", "ellipse")))
-    edges_sub <- edges %>% filter(from %in% ids & to %in% ids)
+    nodes_sub <- nodes |> filter(id %in% ids) |> mutate(shape = if_else(label == current_label, "star", if_else(type == "lag", "box", "ellipse")))
+    edges_sub <- edges |> filter(from %in% ids & to %in% ids)
     
     if (nrow(nodes_sub) == 0) return(NULL)
     
     nodes_sub <- set_focus_positions(nodes_sub, edges_sub, focus_id = current_id, up = up, down = down)
     
-    nodes_df <- nodes_sub %>%
+    nodes_df <- nodes_sub |>
       mutate(
         id = id,
         label = label,
@@ -391,10 +391,10 @@ server <- function(input, output, session) {
         #x = x,
         #y = y,
         shape = shape
-      ) %>% select(id, label, group, color, title, x, y, shape)
+      ) |> select(id, label, group, color, title, x, y, shape)
     
-    edges_df <- edges_sub %>%
-      rename(from = from, to = to) %>%
+    edges_df <- edges_sub |>
+      rename(from = from, to = to) |>
       select(from, to)
     
     list(nodes = nodes_df, edges = edges_df)
@@ -404,14 +404,14 @@ server <- function(input, output, session) {
       data <- focus_graph_reactive()
       req(!is.null(data))
       
-      net <- visNetwork(data$nodes, data$edges, height = h, width = w) %>%
+      net <- visNetwork(data$nodes, data$edges, height = h, width = w) |>
         visNodes(fixed = FALSE,
-                 font = list(size = 20, face = "arial")) %>%
-        visEdges(arrows = "to") %>%
+                 font = list(size = 20, face = "arial")) |>
+        visEdges(arrows = "to") |>
         visOptions(
           highlightNearest = TRUE,
           nodesIdSelection = TRUE
-        ) %>%
+        ) |>
         visInteraction(
           navigationButtons = TRUE,
           zoomView = FALSE
@@ -419,7 +419,7 @@ server <- function(input, output, session) {
       
               net <- apply_layout(net, input, "f_")
     
-      net %>%
+      net |>
         visEvents(
           selectNode = "function(params) {
             if(params.nodes.length > 0){
