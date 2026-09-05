@@ -91,8 +91,10 @@ check_invariants <- function(period = NULL, strict = TRUE, verbose = FALSE) {
                   paste0("  - ", failed, ": ", unlist(detail[failed]), collapse = "\n"))
     if (strict) stop(msg) else warning(msg)
   } else {
-    message("Invariants at ", period, ": ", length(passed), " held, ",
-            length(skipped), " skipped.")
+    if (!isTRUE(getOption("rewind.quiet", FALSE))) {
+      message("Invariants at ", period, ": ", length(passed), " held, ",
+              length(skipped), " skipped.")
+    }
   }
 
   invisible(list(passed = passed, failed = failed, skipped = skipped, detail = detail))

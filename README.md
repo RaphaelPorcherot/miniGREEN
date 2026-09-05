@@ -251,7 +251,46 @@ Three further columns and one further table:
 
 `Scenario` will become a column of `d` when scenarios arrive.
 
-### 4.2 The keep registry
+### 4.2 Running the model
+
+`src/run_model.r` does two things. Read top to bottom it sets the model up —
+inputs, tables, policy panel, modules — which is slow and does not depend on the
+parameters. Then it defines `run_model()`, which is the part that can be run
+again:
+
+```r
+run_model()                                           # as it stands
+run_model(params = c(R_fertility = 1.6))              # with a parameter changed
+run_model(params = p, quiet = TRUE)                   # inside an optimiser
+```
+
+Setup happens once, a run takes about 1.7 s. So a calibration loop is:
+
+```r
+loss <- function(x) {
+  out <- run_model(params = c(R_fertility = x), quiet = TRUE)
+  sum((out$population - observed)^2)
+}
+optim(par = 1.4, fn = loss)
+```
+
+`run_model()` returns a named list of the series a calibration or a scenario
+comparison actually looks at, plus `d` in full for everything else.
+
+**Every name in `params` must already exist in `dp`.** A typo is an error, not a
+silent no-op — which matters most when an optimiser is driving this and nobody
+is reading the output. `dt_update()` is what does the replacing: `dt_set()` only
+ever appends, so until now there was no way to change a parameter at all.
+
+`reset_state()` puts the model back at its starting point between runs: an empty
+`d`, no equation marked as computed, and the lag and level variables restored
+from `init`. Two runs with the same parameters give the same answer.
+
+`quiet = TRUE` silences the per-period messages, the memory checkpoints and the
+invariant summary — a calibration may call this thousands of times. The
+invariants still run, and still stop the model if one is violated.
+
+### 4.3 The keep registry
 
 `clean_ws()` frees memory by emptying the global environment. Everything the
 model needs must be registered first:
@@ -268,7 +307,7 @@ that point the global environment holds the structure, the four tables and the
 equations, and nothing else. Anything created afterwards (the intermediate
 values of a period) is fair game for `clean_ws()`.
 
-### 4.3 Reading and writing
+### 4.4 Reading and writing
 
 | Function | Does |
 |---|---|
@@ -309,7 +348,7 @@ Measured on this model:
 | allocate a row (1000×) | 4.95 s | 0.023 s — **215×** |
 | read a variable (500×) | 1.06 s | 0.021 s — **50×** |
 
-### 4.4 `eq()` — the contract
+### 4.5 `eq()` — the contract
 
 Every equation of the model is an R function whose body is a single `eq({...})`
 block. `eq()` does five things so that you do not have to:
@@ -369,7 +408,7 @@ myEquation <- function() {
 The last line has to be the bare name of the target variable. That is how `eq()`
 knows what it just computed.
 
-### 4.5 The main loop
+### 4.6 The main loop
 
 Because `eq()` refuses to run an equation whose inputs are missing, **you do not
 have to order the equations correctly**. The loop runs several passes; each pass
@@ -1226,10 +1265,10 @@ git push -u origin dev/my-thing
   in its own definition and in the sketch metadata and nowhere else — an
   orphaned input for a module that no longer exists. The `timeuse` subscript is
   likewise still declared and indexes nothing.
-* Calibration. `run_model(params = NULL, scenario = NULL)` exists as the entry
-  point but no calibration procedure is written. Block calibration — module by
-  module, holding the rest fixed — is the realistic approach for a model with
-  this many parameters and a non-convex loss.
+* Calibration. `run_model()` is the entry point (§4.6); no calibration
+  procedure is written on top of it yet. Block calibration — module by module,
+  holding the rest fixed — is the realistic approach for a model with this many
+  parameters and a non-convex loss.
 * `R_mortality_csg` is stored as a full 3D array although it only varies by
   cohort. Same for several other DEM parameters.
 * Scenarios: a `Scenario` column on `d`.

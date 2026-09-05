@@ -643,6 +643,41 @@ dt_set <- function(tname, module, name, value, description = NA, period = NULL,
   invisible(i)
 }
 
+## Change the value of a row that already exists.
+##
+## dt_set() only ever appends: it takes the next free row of a block. Replacing
+## a value — which is what injecting a calibration parameter means — is a
+## different operation, and there was none.
+dt_update <- function(tname, name, value, period = NULL, description = NULL) {
+  i <- table_row(tname, name, period)
+  if (is.null(i)) {
+    stop("Cannot update '", name, "': it is not in `", tname, "`",
+         if (!is.null(period)) paste0(" at period ", period), ". Use dt_set() to add it.")
+  }
+  tbl <- get(tname, envir = .GlobalEnv)
+  set(tbl, i = i, j = "Value", value = list(list(value)))
+  if (!is.null(description)) set(tbl, i = i, j = "Description", value = list(description))
+  invisible(i)
+}
+
+## Override parameters before a run. Takes a named list or vector; every name
+## must already exist in `dp`, so that a typo is an error rather than a silent
+## no-op — the failure mode that matters when an optimiser is driving this.
+apply_params <- function(params) {
+  if (is.null(params) || !length(params)) return(invisible(character()))
+  nms <- names(params)
+  if (is.null(nms) || any(!nzchar(nms))) stop("apply_params(): every parameter must be named.")
+
+  unknown <- nms[!vapply(nms, function(n) table_has("dp", n), logical(1))]
+  if (length(unknown)) {
+    stop("Unknown parameter(s): ", paste(unknown, collapse = ", "),
+         ".\nThey are not in `dp`; check the spelling against unique(dp$Name).")
+  }
+  for (n in nms) dt_update("dp", n, params[[n]])
+  log_info("Parameters overridden: ", paste(nms, collapse = ", "))
+  invisible(nms)
+}
+
 # --- compatibility shims ------------------------------------------------------
 # Kept so that call sites written against the old API keep working. They only
 # hand out a row index and do NOT register it — prefer dt_set().
@@ -772,9 +807,12 @@ deps_record <- function(variable, inputs, parameters, module, equation) {
 # Fonction de checkpoint mémoire ------------------------------------------------------------------------------
 
 memory_checkpoint <- function(step_name = "") {
-  mem <- lobstr::mem_used()
-  mem_mb <- round(as.numeric(mem) / (1024^2), 2)
-  cat(sprintf("[%s] Mémoire utilisée : %.2f Mo\n", step_name, mem_mb))
+  mem_mb <- round(as.numeric(lobstr::mem_used()) / (1024^2), 2)
+  log_info("memory at ", step_name, ": ", mem_mb, " MB")
+  # Silent in a calibration loop: run_model() may be called thousands of times.
+  if (!isTRUE(getOption("rewind.quiet", FALSE))) {
+    message(sprintf("[%s] memory: %.2f MB", step_name, mem_mb))
+  }
 }
 
 

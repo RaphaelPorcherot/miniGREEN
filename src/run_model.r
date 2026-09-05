@@ -421,82 +421,373 @@ message("see ", log_file, " for details.")
 #clean_ws()
 #memory_checkpoint("Step 3.3 right after clean_ws()")
 
+
 #============================================================================
-# STEP 3b — Lagged and level variables (period connectors)
+# THE MODEL AS A FUNCTION
 #============================================================================
+#
+# Everything above runs once: reading the inputs, building the tables, sourcing
+# the modules. It is slow and it does not depend on the parameters.
+#
+# Everything below can be run again with different parameters, which is what a
+# calibration or a scenario sweep needs. `run_model()` is that entry point; it
+# is also what happens when this file is run as a script.
 
-# Lagged variables
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# WHEN SWITCHING TO next periods NEED TO BE CHANGED TO gd:
-# Not integrating these elements in the definition of the function allows to avoid having to write two functions for init and for the restartDescription
-
-## INITIAL 
-# -> they are defined in the main loop
-
-## DELAY
-R_minHrWage_lag <- 0
-R_maxHrWage_lag <- 0
-
-F_totalOutputReal_i_lag <- gi("F_totalOutputReal_i")   
-F_totalOutputNom_i_lag <- gi("F_totalOutputReal_i")  
-R_inflation_lag <- gi("R_inflation")
-F_othBenefPerCap_lag <- gi("F_othBenefPerCap")
-F_labHr_i_lag <- gi("F_labHr_i")
-R_labProd_i_lag <- gi("R_labProd_i")
-F_GFCFreal_i_lag <- gi("F_GFCFreal_i") #GFCF real i delay
-R_unitFactorCost_i_lag <- gi("R_unitFactorCost_i")
-
-### magic number
-if(t==gp("startYear")){
-    R_markup_i_lag <- gi("R_markup_i") * 0.45  
-}else{
-    R_markup_i_lag <- gd("R_markup_i", t-1)
+## Put the model back at its starting point: an empty `d`, no equation marked as
+## computed, and the lag and level variables restored from `init`.
+##
+## The body is evaluated in the global environment on purpose. The equations
+## read these names as globals, so assigning them inside a function frame would
+## put them where nothing can see them.
+reset_state <- function() {
+  d_rows <- nvar
+  create_data_table("d",
+    n        = d_rows,
+    cols     = list(Period = startYear:endYear, Module = modules),
+    order_by = c("Period", "Module"))
+  deps_reset()
+  eq_new_period()
+  eval(RESET_BODY, envir = globalenv())
+  invisible(NULL)
 }
 
-### Normalize prices (only first period)
-dt_set("d", module = "P", name = "R_p_i", value = 1 + template_industry_i, period = gp("startYear"))
-### lag's first value is one
-if(t==gp("startYear")){
-    R_p_i_lag <- 1 + template_industry_i 
-}else{
-    R_p_i_lag <- gd("R_p_i", t-1)
+RESET_BODY <- quote({
+  #============================================================================
+  # STEP 3b — Lagged and level variables (period connectors)
+  #============================================================================
+
+  # Lagged variables
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  # WHEN SWITCHING TO next periods NEED TO BE CHANGED TO gd:
+  # Not integrating these elements in the definition of the function allows to avoid having to write two functions for init and for the restartDescription
+
+  ## INITIAL 
+  # -> they are defined in the main loop
+
+  ## DELAY
+  R_minHrWage_lag <- 0
+  R_maxHrWage_lag <- 0
+
+  F_totalOutputReal_i_lag <- gi("F_totalOutputReal_i")   
+  F_totalOutputNom_i_lag <- gi("F_totalOutputReal_i")  
+  R_inflation_lag <- gi("R_inflation")
+  F_othBenefPerCap_lag <- gi("F_othBenefPerCap")
+  F_labHr_i_lag <- gi("F_labHr_i")
+  R_labProd_i_lag <- gi("R_labProd_i")
+  F_GFCFreal_i_lag <- gi("F_GFCFreal_i") #GFCF real i delay
+  R_unitFactorCost_i_lag <- gi("R_unitFactorCost_i")
+
+  ### magic number
+  if(t==gp("startYear")){
+      R_markup_i_lag <- gi("R_markup_i") * 0.45  
+  }else{
+      R_markup_i_lag <- gd("R_markup_i", t-1)
+  }
+
+  ### Normalize prices (only first period)
+  dt_set("d", module = "P", name = "R_p_i", value = 1 + template_industry_i, period = gp("startYear"))
+  ### lag's first value is one
+  if(t==gp("startYear")){
+      R_p_i_lag <- 1 + template_industry_i 
+  }else{
+      R_p_i_lag <- gd("R_p_i", t-1)
+  }
+  if(t==gp("startYear")){# not by industry however: to fix with actual weights of every industry in composition of GFCF
+      R_pK_lag <- 1
+  }else{
+      R_pK_lag <- gd("R_pK", t-1)
+  }
+
+  ## LEVELS
+  SH_skill_is_lvl <- gi("SH_skill_is")
+  SH_male_is_lvl <- gi("SH_male_is")
+  Pop_lvl <- gi("ST_population_csg")
+  R_LFRP_csg_lvl <- gi("R_LFRP_csg")
+  ST_labJG_csg_lvl <- gi("ST_labJG_csg")
+  R_hrWage_isg_lvl <- gi("R_hrWage_isg") 
+  ST_Kreal_i_lvl <- gi("ST_Kreal_i") # K i : there is a lagged of this lvl : a lag2
+  R_hrWage_isg_lvl <- gi("R_hrWage_isg") 
+  SH_enSrc_enDemZ_in_lvl <- gi("SH_enSrc_enDemZ_in")
+  SH_enSrc_enDemZ_in_lvl <- SH_enSrc_enDemZ_in_lvl / rowSums(SH_enSrc_enDemZ_in_lvl) # rescale because it does not sum up to one
+  # -------------------------------------------------------------------------------------------
+
+  # Formally this is not the case, we only use this to isolate modules
+
+  # Uncomment to isolate GOV
+      # R_inflation_lag P <- gi("R_inflation")
+      # L : ST_unempLabour_sg  ???
+
+  # Uncomment to isolate DEM
+      # R_u_s <- template_population_
+      # R_u_s[] <- c(0, round(runif(3, min = 0.01, max = 0.1), 4), 0)
+  R_labProd_i <- gi("R_labProd_i") # initial lambda i[ind])
+  # Uncomment to isolate L
+      # D : ST_population_csg <- gi("ST_population_csg")  
+      # TECH : R_labProd_i <- gi("R_labProd_i")
+      # GOV : F_GUB_sg, F_otherIncomePerCapita ???
+      # P : O_CPI ???
+
+  memory_checkpoint("Step 3.3 after full init")
+
+})
+
+## One period.
+model_step <- function(period) {
+  assign("t", period, envir = globalenv())
+  eq_new_period()
+
+  #============================================================================
+  # STEP 4 — The model
+  #============================================================================
+
+  # One period. eq_run_passes() calls the block below repeatedly until a pass
+  # resolves nothing new; an equation that already succeeded is skipped. The
+  # equations are grouped by module, in the order of the Vensim views, and that
+  # order does not have to be a dependency order. See README.md 4.5.
+  eq_new_period()
+  eq_run_passes(max_passes = max_passes, body = function() {
+
+  # VENSIM INITIAL()
+
+     # # 2 year lag
+      labourProductivity_lag2()
+      #F_expDispIncPerCap_dsg_lag2 <- expectationDisposableIncomePerCapita_dsg_lag2()
+      realCapitalDepreciation_lag() # because K is level ? 
+
+     # # 1 year lag
+      #F_expDispIncPerCap_dsg_lag <- expectationDisposableIncomePerCapita_dsg_lag()
+      #F_expIncome_sg_lag <- incomeExpectation_lag()
+      employedLabour_lag()
+
+  # BEGIN module
+
+      # POLICY ------------------------------------------------------------------ CHECKED
+
+      POL_wageCompWTR()
+      POL_wageIndex()
+      POL_minWage() # 10 euros for now: it is not yet updated, hence the real value of these 10 euros may vary across simulations
+      POL_maxWage() # 40 euros for now: it is not yet updated, hence the real value of these 10 euros may vary across simulations
+
+
+      # GOV --------------------------------------------------------------------- CHECKED
+
+      POL_unempBenefitsShareInWageBill()
+      POL_pensionBenefitsShare_in_wageBill()
+      POL_otherBenefits()
+      POL_govWageCompWTR()
+      POL_valueAddedTaxRate()
+      POL_incomeTaxRate()
+
+      grossUnempBenefits()
+      grossPensionBenefits()
+
+      socialSecurityContRateTotal()
+      socialSecurityContRateByEmployer()
+      socialSecurityContRateByEmployee()
+
+      grossAnnualIncomePerCapita_employed()
+      socialSecurityAnnualContPerCapita_eByEmployer()
+      socialSecurityAnnualContPerCapita_employed()
+      taxableAnnualIncomePerCapita_employed()
+
+      grossAnnualIncomePerCapita_unemployed()
+      socialSecurityAnnualContPerCapita_unemployed()
+      taxableAnnualIncomePerCapita_unemployed()
+
+      grossAnnualIncomePerCapita_pension()
+      taxableAnnualIncomePerCapita_pension()
+      socialSecurityAnnualContPerCapita_pension() # This Contribution Social Généralisée, but this only in France?
+
+      incomeTaxLevyPerCapita_employed()
+      incomeTaxLevyPerCapita_unemployed()
+      incomeTaxLevyPerCapita_pension()
+      totalIncomeTaxLevy()
+
+
+      # L ----------------------------------------------------------------------- CHECKED
+
+    #  #R_hourW_isg <- POL_shift_hourlyWage()
+      POL_annualWorkingHours()
+
+      grossWageBill()  # Period connector : prev hourW, current labourH and ST_labour
+      desiredLabour_i()   # Period connector : prev totalOuput, current lambda and labourH
+      desiredLabour_isg()  
+
+      workingAgePop()
+      availableLabour() # Not activePop in its general sense, but in its strict sense : without JG workers (to allows use to compute effectve LabEmp)
+      activePop() # This includes JG in addition of labour supply
+      inactivePop()
+      employedLabour()    
+      unemployedLabour()
+
+      employmentRate_s() # in btw periods
+      employmentRate_g() # in btw periods
+      employmentRate_sg() # in btw periods
+      unemploymentRate_s() # less clearly so but also in btw periods
+      unemploymentRate_sg() # less clearly so but also in btw periods
+
+      diffRateUnemploymentBySkill()
+      diffRateUnemploymentByGender()
+      flowSkillLabourShare()
+      shift_SkillLabourShare()
+      flowMaleLabourShare()
+      shift_MaleLabourShare()
+    #  #F_expIncome_sg <- incomeExpectation()
+    #  #F_labJG_csg <- flux_JobGuarantee()
+    #  #R_LFRP_csg <- shift_LabourForceParticipationRate()
+    #  #ST_labJG_csg <- shift_stockJobGuarantee()  
+
+
+      # C -----------------------------------------------------------------------
+
+      currentPopIncomeGroups_dsg()
+      #expectationDisposableIncomePerCapita_dsg()
+      #accumulatedInflationNACE_i()
+      #accumulatedInflationCOICOP_p()
+      disposableIncomePerCapita_dsg()
+
+   #   F_Creal_p <- realTotalConsumptionDemandCOICOP_p()
+   #   F_Cnom_i <- nominalTotalConsumptionDemandNACE_i()
+
+      # I -----------------------------------------------------------------------
+
+      #setPricesCapital()
+      POL_shiftRateRealCapitalDepreciation() 
+      realCapitalDepreciation()
+      #F_GFCFreal_i <- realInvestmentDemand()
+
+     # ST_KReal_i <- realCapitalStock()
+
+      # P -----------------------------------------------------------------------
+
+      SHOCK_setMarkup()
+      #unitLabCost()
+      #unitInputCost()
+      #unitFactorCost()
+      #setPrices() #***
+      #currentInflationByIndustry_i()
+      #SH_nomConsNACE_i <- currentInflationWeights_i()
+      #R_inflation <- currentInflation()
+
+      # TR ----------------------------------------------------------------------
+
+      POL_importShareInIntermediateTrade()
+      #SHIFT_nominalImportIntermediateDemand()
+      #SHIFT_nominalExport()
+
+      #realExport()
+      #realImportInterMediateDemand()
+      #totalRealImportIntermediateDemand() # not used elsewhere it seems
+
+      # IO ----------------------------------------------------------------------
+
+
+      interIndustryCoeff()  #***
+      leontieffMatrix_ii()
+      #realInterIndustryTradeMatrix_ii()
+     # nominalInterIndustryTradeMatrix_ii()
+      #nominalIntermediateDemand_interindustryAndImport()
+    #  F_finalDemReal_i <- realFinalDemandForDomesticGoods_i()
+    #  F_finalDemNom_i <- nominalFinalDemandForDomesticGoods_i()
+    #  #F_totalOutputReal_i <- realTotalOuput_i()
+    #  #F_totalOutputNom_i <- nominalTotalOuput_i()    
+
+      # TECH ---------------------------------------------------------------------
+
+      POL_scalingLabourProductivity()
+
+      techFrontierLabourProd()
+      computeAlternativeChangeLabourProductivity()
+      #R_labProdDiffusion_i <- currTechDiffusionLabourProd() #~~~~
+      #R_labProdAlt_iv <- computeAlternativeLabourProductivity()
+      #ST_desLabAlt_isvg <- computeAlternativeDesiredLabour()
+      #F_GWBAlt_iv <- computeAlternativeGrossWageBill()
+
+      #R_unitLabCostAlt_iv <- unitLabCostAlt(
+      #R_unitInputCostAlt_iv <- unitLabCostAlt()
+      #R_unitFactorCostAlt_iv <- unitFactorCostAlt()
+      #R_labProd_i <- shiftLabourProductivity_i()
+
+      # EN -----------------------------------------------------------------------
+  #
+   #   R_gEnShare_fromPolicy_in <- POL_PhaseOutReductionEnShare()
+   #   SH_enSrc_enDemZ_in <- POL_Shift_EnSourceShare_in_InterProdEnDemand()
+  #
+   #   R_gEnShare_fromRenew_in <- shift_EnSourceShare_FromRenewGrowth_i()
+
+       # CADA --------------------------------------------------------------------- 1
+
+      POL_carbonTaxRate()
+      # priceETS_i <- POL_priceETS()
+      # F_taxableCarbon_i <- CarbonTaxCoverage()
+      #F_carbonTaxLevy_i <-CarbonTaxLevy()
+      #F_carbonCostETS_i <- CarbonCostETS()
+      #F_carbonCostTotal_i <-CarbonCostTotal()
+
+      # DEM --------------------------------------------------------------------- 8
+
+      POL_trendEntrySkill()
+
+      birth()
+      death()
+      maturationOut()
+      maturationIn()
+      smoothSkillShift()
+      skillShiftIncomingPop()
+      skillShiftAllPop()
+      flowPopulation()
+      endCurrentPeriodPop()
+
+  # END module 
+      # -----------------------------------------------------------------------
+      # -----------------------------------------------------------------------
+      # -----------------------------------------------------------------------
+
+  })
+
+
+  check_invariants(period = period)
+  invisible(NULL)
 }
-if(t==gp("startYear")){# not by industry however: to fix with actual weights of every industry in composition of GFCF
-    R_pK_lag <- 1
-}else{
-    R_pK_lag <- gd("R_pK", t-1)
+
+## What a run returns. Deliberately short: these are the series a calibration or
+## a scenario comparison actually looks at, not a dump of `d`, which is there in
+## full for anything else.
+model_outputs <- function() {
+  list(
+    population  = gda("ST_population_csg"),
+    employment  = gda("ST_labEmp_isg"),
+    unemployed  = gda("ST_labUnemp_sg"),
+    unemp_rate  = gda("R_u_s"),
+    skill_share = gda("SH_skill_is"),
+    male_share  = gda("SH_male_is"),
+    d           = d
+  )
 }
 
-## LEVELS
-SH_skill_is_lvl <- gi("SH_skill_is")
-SH_male_is_lvl <- gi("SH_male_is")
-Pop_lvl <- gi("ST_population_csg")
-R_LFRP_csg_lvl <- gi("R_LFRP_csg")
-ST_labJG_csg_lvl <- gi("ST_labJG_csg")
-R_hrWage_isg_lvl <- gi("R_hrWage_isg") 
-ST_Kreal_i_lvl <- gi("ST_Kreal_i") # K i : there is a lagged of this lvl : a lag2
-R_hrWage_isg_lvl <- gi("R_hrWage_isg") 
-SH_enSrc_enDemZ_in_lvl <- gi("SH_enSrc_enDemZ_in")
-SH_enSrc_enDemZ_in_lvl <- SH_enSrc_enDemZ_in_lvl / rowSums(SH_enSrc_enDemZ_in_lvl) # rescale because it does not sum up to one
-# -------------------------------------------------------------------------------------------
+## Run the model, optionally with parameters overridden.
+##
+##   run_model()
+##   run_model(params = c(R_fertility = 1.4, timeSkillTransition = 5))
+##
+## Every name in `params` must already exist in `dp`: a typo is an error, not a
+## silent no-op. That matters most when an optimiser is driving this and nobody
+## is reading the output.
+run_model <- function(params = NULL, periods = NULL, quiet = FALSE) {
 
-# Formally this is not the case, we only use this to isolate modules
+  old <- options(rewind.quiet = quiet); on.exit(options(old), add = TRUE)
 
-# Uncomment to isolate GOV
-    # R_inflation_lag P <- gi("R_inflation")
-    # L : ST_unempLabour_sg  ???
+  apply_params(params)
+  reset_state()
 
-# Uncomment to isolate DEM
-    # R_u_s <- template_population_
-    # R_u_s[] <- c(0, round(runif(3, min = 0.01, max = 0.1), 4), 0)
-R_labProd_i <- gi("R_labProd_i") # initial lambda i[ind])
-# Uncomment to isolate L
-    # D : ST_population_csg <- gi("ST_population_csg")  
-    # TECH : R_labProd_i <- gi("R_labProd_i")
-    # GOV : F_GUB_sg, F_otherIncomePerCapita ???
-    # P : O_CPI ???
+  if (is.null(periods)) periods <- startYear      # one period, until the time loop exists
+  for (p in periods) {
+    if (!quiet) message("--- period ", p, " ---")
+    model_step(p)
+  }
 
-memory_checkpoint("Step 3.3 after full init")
+  invisible(model_outputs())
+}
 
 #============================================================================
 # STEP 3c — Development or run mode
@@ -506,235 +797,29 @@ memory_checkpoint("Step 3.3 after full init")
 dev_or_run <- "run"#"dev" #run # ion
 keep_add(c("dev_or_run", ".message_log"))  # engine state, must survive clean_ws()
 
-#============================================================================
-# STEP 4 — The model
-#============================================================================
 
-# One period. eq_run_passes() calls the block below repeatedly until a pass
-# resolves nothing new; an equation that already succeeded is skipped. The
-# equations are grouped by module, in the order of the Vensim views, and that
-# order does not have to be a dependency order. See README.md 4.5.
-eq_new_period()
-eq_run_passes(max_passes = max_passes, body = function() {
+# When this file is run as a script rather than sourced, run the model once.
+if (!interactive()) {
+  run_model()
 
-# VENSIM INITIAL()
+  #============================================================================
+  # STEP 5 — Save
+  #============================================================================
 
-   # # 2 year lag
-    labourProductivity_lag2()
-    #F_expDispIncPerCap_dsg_lag2 <- expectationDisposableIncomePerCapita_dsg_lag2()
-    realCapitalDepreciation_lag() # because K is level ? 
-    
-   # # 1 year lag
-    #F_expDispIncPerCap_dsg_lag <- expectationDisposableIncomePerCapita_dsg_lag()
-    #F_expIncome_sg_lag <- incomeExpectation_lag()
-    employedLabour_lag()
+  # Save environment to write documentation 
+  # Save GlobalEnv
+  output_path <- DIR_OUTPUT
 
-# BEGIN module
-    
-    # POLICY ------------------------------------------------------------------ CHECKED
+  save.image(file = file.path(output_path, "model_only.RData"))
+  message("model data saved to:\n", paste0(output_path,"/model_only.RData"))
+  # Save only main datatables 
+  modelDT <- list()
+  modelDT[["dp"]] <- dp 
+  modelDT[["init"]] <- init
+  modelDT[["lookup"]] <- lookup
+  modelDT[["d"]] <- d
 
-    POL_wageCompWTR()
-    POL_wageIndex()
-    POL_minWage() # 10 euros for now: it is not yet updated, hence the real value of these 10 euros may vary across simulations
-    POL_maxWage() # 40 euros for now: it is not yet updated, hence the real value of these 10 euros may vary across simulations
-    
+  save(modelDT, file = file.path(output_path, "modelDT.RData"))
+  message("model datatable saved to:\n", paste0(output_path,"/modelDT.RData"))
 
-    # GOV --------------------------------------------------------------------- CHECKED
-    
-    POL_unempBenefitsShareInWageBill()
-    POL_pensionBenefitsShare_in_wageBill()
-    POL_otherBenefits()
-    POL_govWageCompWTR()
-    POL_valueAddedTaxRate()
-    POL_incomeTaxRate()
-    
-    grossUnempBenefits()
-    grossPensionBenefits()
-    
-    socialSecurityContRateTotal()
-    socialSecurityContRateByEmployer()
-    socialSecurityContRateByEmployee()
-
-    grossAnnualIncomePerCapita_employed()
-    socialSecurityAnnualContPerCapita_eByEmployer()
-    socialSecurityAnnualContPerCapita_employed()
-    taxableAnnualIncomePerCapita_employed()
-
-    grossAnnualIncomePerCapita_unemployed()
-    socialSecurityAnnualContPerCapita_unemployed()
-    taxableAnnualIncomePerCapita_unemployed()
-    
-    grossAnnualIncomePerCapita_pension()
-    taxableAnnualIncomePerCapita_pension()
-    socialSecurityAnnualContPerCapita_pension() # This Contribution Social Généralisée, but this only in France?
-
-    incomeTaxLevyPerCapita_employed()
-    incomeTaxLevyPerCapita_unemployed()
-    incomeTaxLevyPerCapita_pension()
-    totalIncomeTaxLevy()
-    
-   
-    # L ----------------------------------------------------------------------- CHECKED
-    
-  #  #R_hourW_isg <- POL_shift_hourlyWage()
-    POL_annualWorkingHours()
-    
-    grossWageBill()  # Period connector : prev hourW, current labourH and ST_labour
-    desiredLabour_i()   # Period connector : prev totalOuput, current lambda and labourH
-    desiredLabour_isg()  
-    
-    workingAgePop()
-    availableLabour() # Not activePop in its general sense, but in its strict sense : without JG workers (to allows use to compute effectve LabEmp)
-    activePop() # This includes JG in addition of labour supply
-    inactivePop()
-    employedLabour()    
-    unemployedLabour()
-    
-    employmentRate_s() # in btw periods
-    employmentRate_g() # in btw periods
-    employmentRate_sg() # in btw periods
-    unemploymentRate_s() # less clearly so but also in btw periods
-    unemploymentRate_sg() # less clearly so but also in btw periods
-    
-    diffRateUnemploymentBySkill()
-    diffRateUnemploymentByGender()
-    flowSkillLabourShare()
-    shift_SkillLabourShare()
-    flowMaleLabourShare()
-    shift_MaleLabourShare()
-  #  #F_expIncome_sg <- incomeExpectation()
-  #  #F_labJG_csg <- flux_JobGuarantee()
-  #  #R_LFRP_csg <- shift_LabourForceParticipationRate()
-  #  #ST_labJG_csg <- shift_stockJobGuarantee()  
-    
-
-    # C -----------------------------------------------------------------------
-    
-    currentPopIncomeGroups_dsg()
-    #expectationDisposableIncomePerCapita_dsg()
-    #accumulatedInflationNACE_i()
-    #accumulatedInflationCOICOP_p()
-    disposableIncomePerCapita_dsg()
-    
- #   F_Creal_p <- realTotalConsumptionDemandCOICOP_p()
- #   F_Cnom_i <- nominalTotalConsumptionDemandNACE_i()
-
-    # I -----------------------------------------------------------------------
-
-    #setPricesCapital()
-    POL_shiftRateRealCapitalDepreciation() 
-    realCapitalDepreciation()
-    #F_GFCFreal_i <- realInvestmentDemand()
-    
-   # ST_KReal_i <- realCapitalStock()
-    
-    # P -----------------------------------------------------------------------
-   
-    SHOCK_setMarkup()
-    #unitLabCost()
-    #unitInputCost()
-    #unitFactorCost()
-    #setPrices() #***
-    #currentInflationByIndustry_i()
-    #SH_nomConsNACE_i <- currentInflationWeights_i()
-    #R_inflation <- currentInflation()
-
-    # TR ----------------------------------------------------------------------
-    
-    POL_importShareInIntermediateTrade()
-    #SHIFT_nominalImportIntermediateDemand()
-    #SHIFT_nominalExport()
-    
-    #realExport()
-    #realImportInterMediateDemand()
-    #totalRealImportIntermediateDemand() # not used elsewhere it seems
-    
-    # IO ----------------------------------------------------------------------
-  
-    
-    interIndustryCoeff()  #***
-    leontieffMatrix_ii()
-    #realInterIndustryTradeMatrix_ii()
-   # nominalInterIndustryTradeMatrix_ii()
-    #nominalIntermediateDemand_interindustryAndImport()
-  #  F_finalDemReal_i <- realFinalDemandForDomesticGoods_i()
-  #  F_finalDemNom_i <- nominalFinalDemandForDomesticGoods_i()
-  #  #F_totalOutputReal_i <- realTotalOuput_i()
-  #  #F_totalOutputNom_i <- nominalTotalOuput_i()    
-    
-    # TECH ---------------------------------------------------------------------
-
-    POL_scalingLabourProductivity()
-    
-    techFrontierLabourProd()
-    computeAlternativeChangeLabourProductivity()
-    #R_labProdDiffusion_i <- currTechDiffusionLabourProd() #~~~~
-    #R_labProdAlt_iv <- computeAlternativeLabourProductivity()
-    #ST_desLabAlt_isvg <- computeAlternativeDesiredLabour()
-    #F_GWBAlt_iv <- computeAlternativeGrossWageBill()
-    
-    #R_unitLabCostAlt_iv <- unitLabCostAlt(
-    #R_unitInputCostAlt_iv <- unitLabCostAlt()
-    #R_unitFactorCostAlt_iv <- unitFactorCostAlt()
-    #R_labProd_i <- shiftLabourProductivity_i()
-
-    # EN -----------------------------------------------------------------------
-#
- #   R_gEnShare_fromPolicy_in <- POL_PhaseOutReductionEnShare()
- #   SH_enSrc_enDemZ_in <- POL_Shift_EnSourceShare_in_InterProdEnDemand()
-#
- #   R_gEnShare_fromRenew_in <- shift_EnSourceShare_FromRenewGrowth_i()
-
-     # CADA --------------------------------------------------------------------- 1
-
-    POL_carbonTaxRate()
-    # priceETS_i <- POL_priceETS()
-    # F_taxableCarbon_i <- CarbonTaxCoverage()
-    #F_carbonTaxLevy_i <-CarbonTaxLevy()
-    #F_carbonCostETS_i <- CarbonCostETS()
-    #F_carbonCostTotal_i <-CarbonCostTotal()
-    
-    # DEM --------------------------------------------------------------------- 8
-
-    POL_trendEntrySkill()
-    
-    birth()
-    death()
-    maturationOut()
-    maturationIn()
-    smoothSkillShift()
-    skillShiftIncomingPop()
-    skillShiftAllPop()
-    flowPopulation()
-    endCurrentPeriodPop()
-
-# END module 
-    # -----------------------------------------------------------------------
-    # -----------------------------------------------------------------------
-    # -----------------------------------------------------------------------
-    
-})
-
-# Everything that must be true at the end of a period, whatever the scenario.
-# See src/A-prep-steps/3-invariants.r.
-check_invariants()
-
-#============================================================================
-# STEP 5 — Save
-#============================================================================
-
-# Save environment to write documentation 
-# Save GlobalEnv
-output_path <- DIR_OUTPUT
-
-save.image(file = file.path(output_path, "model_only.RData"))
-message("model data saved to:\n", paste0(output_path,"/model_only.RData"))
-# Save only main datatables 
-modelDT <- list()
-modelDT[["dp"]] <- dp 
-modelDT[["init"]] <- init
-modelDT[["lookup"]] <- lookup
-modelDT[["d"]] <- d
-
-save(modelDT, file = file.path(output_path, "modelDT.RData"))
-message("model datatable saved to:\n", paste0(output_path,"/modelDT.RData"))
+}
