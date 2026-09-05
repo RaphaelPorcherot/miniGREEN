@@ -1074,8 +1074,12 @@ under `input/`.
 * `tool/data-to-convert/` — raw `.txt` blocks copied out of Vensim (matrices,
   `TABBED ARRAY`, constant lists)
 * `tool/data-lookup/` — raw `.txt` blocks for graphical functions
-* `tool/directed_graphs.qmd` — builds the dependency graph consumed by the Shiny
-  app
+* `tool/build-graph.r` — runs the model, then writes `app/graph/graph_obj.RData`,
+  the dependency graph the Shiny viewer reads. The edges come from `deps`, which
+  `eq()` fills as the model runs, so the graph is what the model actually did on
+  its last run rather than a drawing kept in step by hand. It also captures the
+  source text of every equation (`options(keep.source = TRUE)`), which is what
+  lets the viewer show the code that computes a variable, with its file and line.
 
 ### 11.1 The extraction manifest
 

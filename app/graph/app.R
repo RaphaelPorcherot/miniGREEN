@@ -14,8 +14,25 @@ modules <- unique(graph_obj$nodes$type)
 modules <- modules[modules != "lag"]
 modules <- c("main", modules)
 
-nodes <- graph_obj$nodes
-edges <- graph_obj$edges
+nodes     <- graph_obj$nodes
+edges     <- graph_obj$edges
+equations <- graph_obj$equations
+
+# Kind dit ce qu'est un objet, le module dit ou il vit : deux questions
+# orthogonales, portees l'une par la forme, l'autre par la couleur.
+KIND_ORDER <- c("state", "flow", "aux", "lag")
+KIND_GLOSS <- c(state = "stock, porte le passe",
+                flow  = "ce qui fait bouger un stock",
+                aux   = "calcule puis oublie",
+                lag   = "entre par init")
+SHAPE_GLOSS <- c(database = "cylindre", box = "boite",
+                 ellipse = "ellipse", text = "sans cadre")
+
+kinds_present <- KIND_ORDER[KIND_ORDER %in% unique(nodes$kind)]
+kind_counts   <- table(nodes$kind)
+
+EDGE_CROSS  <- "#C0392B"   # une arete qui sort de son module
+EDGE_WITHIN <- "#B0B0B0"
 
 # ------------------------------------------------------------------------------------------------
                                             # Fonctions #
@@ -105,6 +122,29 @@ set_focus_positions <- function(nodes_df, edges_df, focus_id, up, down) {
 }
 
 
+# Filtres de lecture du graphe, un jeu par onglet.
+filter_controls <- function(p) {
+  id <- function(x) paste0(p, x)
+  labels <- lapply(kinds_present, function(k) {
+    HTML(sprintf("<b>%s</b> <span style='color:#888'>(%d, %s &mdash; %s)</span>",
+                 k, kind_counts[[k]],
+                 SHAPE_GLOSS[[ graph_obj$kind_shape[[k]] ]], KIND_GLOSS[[k]]))
+  })
+  tagList(
+    checkboxGroupInput(id("kinds"), "Kinds:",
+                       choiceNames = labels, choiceValues = kinds_present,
+                       selected = kinds_present),
+    radioButtons(id("edge_scope"), "Edges:",
+                 choiceNames  = c("Toutes", "Inter-modules seulement", "Intra-module seulement"),
+                 choiceValues = c("all", "cross", "intra"), selected = "all"),
+    helpText(HTML(paste0(
+      "Les aretes inter-modules sont en <span style='color:", EDGE_CROSS,
+      "'><b>rouge</b></span>. Une arete dont un bout est un porteur non trace",
+      " n'est comptee ni dans un sens ni dans l'autre."))),
+    tags$hr()
+  )
+}
+
 # Les deux onglets proposent les memes reglages de layout. Ils doivent porter
 # des identifiants distincts : Shiny ne lie que la premiere occurrence d'un id,
 # donc la seconde copie de ces controles etait inerte.
@@ -151,6 +191,73 @@ layout_controls <- function(p) {
   )
 }
 
+# Applique les filtres de l'onglet p. `keep_ids` echappe au filtre par kind :
+# c'est la variable sur laquelle on a demande le focus, la retirer viderait
+# l'ecran sans rien dire.
+apply_filters <- function(nodes_sub, edges_sub, input, p, keep_ids = integer(0)) {
+  g <- function(x) input[[paste0(p, x)]]
+
+  kinds <- g("kinds")
+  if (!is.null(kinds)) {
+    nodes_sub <- nodes_sub[nodes_sub$kind %in% kinds | nodes_sub$id %in% keep_ids, , drop = FALSE]
+    edges_sub <- edges_sub[edges_sub$from %in% nodes_sub$id &
+                           edges_sub$to   %in% nodes_sub$id, , drop = FALSE]
+  }
+
+  scope <- g("edge_scope")
+  if (identical(scope, "cross")) edges_sub <- edges_sub[edges_sub$crosses_module, , drop = FALSE]
+  if (identical(scope, "intra")) edges_sub <- edges_sub[!edges_sub$crosses_module, , drop = FALSE]
+
+  list(nodes = nodes_sub, edges = edges_sub)
+}
+
+# Une arete qui franchit une frontiere de module se voit.
+style_edges <- function(e) {
+  if (nrow(e) == 0) return(data.frame(from = integer(0), to = integer(0)))
+  data.frame(
+    from   = e$from,
+    to     = e$to,
+    color  = ifelse(e$crosses_module, EDGE_CROSS, EDGE_WITHIN),
+    width  = ifelse(e$crosses_module, 2.5, 1),
+    title  = paste0(e$from_name, " &rarr; ", e$to_name,
+                    ifelse(e$crosses_module,
+                           paste0("<br><i>", e$from_home, " &rarr; ", e$to_home, "</i>"), "")),
+    stringsAsFactors = FALSE
+  )
+}
+
+# L'infobulle repond a "qu'est-ce que c'est", la modale a "comment c'est calcule".
+node_tooltip <- function(n) {
+  paste0("<b>", n$label, "</b><br>", n$kind, " &middot; ", n$type,
+         ifelse(!is.na(n$equation), paste0("<br><code>", n$equation, "()</code>"), ""))
+}
+
+node_modal <- function(node_id, meta) {
+  i <- match(node_id, meta$id)
+  if (is.na(i)) return(invisible(NULL))
+  n  <- meta[i, ]
+  eq <- if (!is.na(n$equation)) equations[match(n$equation, equations$name), ] else NULL
+
+  showModal(modalDialog(
+    title = n$label, size = "l", easyClose = TRUE,
+    tags$p(tags$span(class = "badge bg-secondary", n$kind), " ",
+           tags$span(class = "badge bg-light text-dark", n$type),
+           if (!is.na(n$home) && n$home != n$type)
+             tags$small(paste0("  porte une variable de ", n$home))),
+    tags$p(if (is.na(n$description)) tags$em("pas de description dans le modele")
+           else n$description),
+    if (!is.null(eq) && !is.na(eq$src)) tagList(
+      tags$hr(),
+      tags$p(tags$code(paste0(eq$name, "()")), " ",
+             tags$small(style = "color:#888", paste0(eq$file, ":", eq$line))),
+      tags$pre(style = paste("max-height:55vh; overflow:auto; background:#f7f7f7;",
+                             "padding:12px; border-radius:4px; font-size:12px;"),
+               eq$src)
+    ) else tags$p(tags$hr(), tags$em(
+      "aucune equation ne calcule cet objet : il entre par init."))
+  ))
+}
+
 # Applique au reseau les reglages de layout de l'onglet prefixe par p.
 apply_layout <- function(net, input, p) {
   g <- function(x) input[[paste0(p, x)]]
@@ -191,7 +298,7 @@ apply_layout <- function(net, input, p) {
                                             # UI #
 # ------------------------------------------------------------------------------------------------
 ui <- page_navbar(
-  title = "REWIND",
+  title = "miniGREEN",
   theme = bs_theme(bootswatch = "flatly"),
   
   ### --- Tab 1 : Graphe principal ---
@@ -203,6 +310,7 @@ ui <- page_navbar(
                 tags$h4("Legend:"),
                 uiOutput("legend"), 
                 tags$hr(),
+                filter_controls("m_"),
                 layout_controls("m_")
               ),
               card(
@@ -224,6 +332,7 @@ ui <- page_navbar(
                 tags$h4("Legend:"),
                 uiOutput("focus_legend"),
                 tags$hr(),
+                filter_controls("f_"),
                 layout_controls("f_")
               ),
               card(
@@ -255,30 +364,30 @@ server <- function(input, output, session) {
       nodes_sub <- nodes |> filter(label %in% obj_in_sub)
     }
     
+    kept <- apply_filters(nodes_sub, edges_sub, input, "m_")
+    nodes_sub <- kept$nodes; edges_sub <- kept$edges
+    if (nrow(nodes_sub) == 0) return(NULL)
+
     nodes_sub <- set_node_positions(nodes_sub)
-    
-    nodes_df <- nodes_sub |>
-      mutate(
-        id = id,
-        label = label,
-        group = type,
-        color = fillcolor,
-        title = label,
-        x = x,
-        y = y,
-        shape = if_else(type == "lag", "box", "ellipse")
-      ) |> select(id, label, group, color, title, x, y, shape)
-    
-    edges_df <- edges_sub |>
-      rename(from = from, to = to) |>
-      select(from, to)
-    
-    list(nodes = nodes_df, edges = edges_df)
+
+    # La forme vient de `kind`, telle que build-graph.r l'a decidee ; la couleur
+    # vient du module. On ne la recalcule pas ici.
+    nodes_df <- data.frame(
+      id = nodes_sub$id, label = nodes_sub$label,
+      group = nodes_sub$type, color = nodes_sub$fillcolor,
+      title = node_tooltip(nodes_sub),
+      x = nodes_sub$x, y = nodes_sub$y, shape = nodes_sub$shape,
+      stringsAsFactors = FALSE
+    )
+
+    list(nodes = nodes_df, edges = style_edges(edges_sub), meta = nodes_sub,
+         n_cross = sum(edges_sub$crosses_module))
   })
   
   output$graph <- renderVisNetwork({
     data <- graph_reactive()
-    
+    req(!is.null(data))
+
     net <- visNetwork(data$nodes, data$edges, height = h, width = w) |>
       visNodes(fixed = FALSE,
                font = list(size = 20, face = "arial")) |>
@@ -307,18 +416,18 @@ server <- function(input, output, session) {
   
   output$module_title <- renderText({
     data <- graph_reactive()
-    mod <- input$select_graph
-    n_lag <- sum(data$nodes$group == "lag")
-    n_var <- ifelse(mod == "main",
-                    nrow(data$nodes) - n_lag,
-                    sum(data$nodes$group == mod))
-    paste0("Module: ", mod, " (", n_var, " objects) ")
+    if (is.null(data)) return("Aucun objet ne passe les filtres.")
+    n_lag <- sum(data$meta$type == "lag")
+    sprintf("Module: %s | %d objets (%d calcules, %d venus d'init) | %d aretes, dont %d inter-modules",
+            input$select_graph, nrow(data$meta), nrow(data$meta) - n_lag, n_lag,
+            nrow(data$edges), data$n_cross)
   })
   
   output$legend <- renderUI({
     data <- graph_reactive()
+    req(!is.null(data))
     nodes_df <- data$nodes
-    groups <- unique(nodes_df$group)
+    groups <- sort(unique(nodes_df$group))
     
     colors <- sapply(groups, function(g) {
       col <- nodes_df$color[which(nodes_df$group == g)[1]]
@@ -374,30 +483,33 @@ server <- function(input, output, session) {
     
     ids <- unique(ids)
     
-    nodes_sub <- nodes |> filter(id %in% ids) |> mutate(shape = if_else(label == current_label, "star", if_else(type == "lag", "box", "ellipse")))
+    nodes_sub <- nodes |> filter(id %in% ids)
     edges_sub <- edges |> filter(from %in% ids & to %in% ids)
-    
+
+    # La variable au centre survit au filtre par kind : la retirer viderait
+    # l'ecran sans rien apprendre.
+    kept <- apply_filters(nodes_sub, edges_sub, input, "f_", keep_ids = current_id)
+    nodes_sub <- kept$nodes; edges_sub <- kept$edges
     if (nrow(nodes_sub) == 0) return(NULL)
-    
+
     nodes_sub <- set_focus_positions(nodes_sub, edges_sub, focus_id = current_id, up = up, down = down)
-    
-    nodes_df <- nodes_sub |>
-      mutate(
-        id = id,
-        label = label,
-        group = type,
-        color = fillcolor,
-        title = label,
-        #x = x,
-        #y = y,
-        shape = shape
-      ) |> select(id, label, group, color, title, x, y, shape)
-    
-    edges_df <- edges_sub |>
-      rename(from = from, to = to) |>
-      select(from, to)
-    
-    list(nodes = nodes_df, edges = edges_df)
+    # set_focus_positions retraverse le graphe avec les aretes filtrees : un
+    # filtre serre peut n'y laisser plus rien.
+    if (nrow(nodes_sub) == 0) return(NULL)
+
+    # Le foyer garde sa forme (donc son kind) et se signale par son cadre.
+    is_focus <- nodes_sub$id == current_id
+    nodes_df <- data.frame(
+      id = nodes_sub$id, label = nodes_sub$label,
+      group = nodes_sub$type, color = nodes_sub$fillcolor,
+      title = node_tooltip(nodes_sub),
+      x = nodes_sub$x, y = nodes_sub$y, shape = nodes_sub$shape,
+      borderWidth = ifelse(is_focus, 4, 1),
+      stringsAsFactors = FALSE
+    )
+
+    list(nodes = nodes_df, edges = style_edges(edges_sub), meta = nodes_sub,
+         n_cross = sum(edges_sub$crosses_module))
   })
   
     output$focus_graph <- renderVisNetwork({
@@ -435,7 +547,7 @@ server <- function(input, output, session) {
     req(!is.null(data))
     
     nodes_df <- data$nodes
-    types <- unique(nodes_df$group)
+    types <- sort(unique(nodes_df$group))
     
     colors <- sapply(types, function(t) {
       col <- nodes_df$color[which(nodes_df$group == t)[1]]
@@ -457,40 +569,26 @@ server <- function(input, output, session) {
   
   output$focus_title <- renderText({
     req(input$focus_var)
-    paste0("Focus on: ", input$focus_var,
-           " (Up: ", input$focus_up,
-           ", Down: ", input$focus_down, ")")
+    data <- focus_graph_reactive()
+    if (is.null(data)) return(paste0("Focus on: ", input$focus_var, " | rien a montrer"))
+    sprintf("Focus on: %s (up %d, down %d) | %d objets, %d aretes, dont %d inter-modules",
+            input$focus_var, input$focus_up, input$focus_down,
+            nrow(data$meta), nrow(data$edges), data$n_cross)
   })
   
-  # Clicks on main graph nodes
-    observeEvent(input$clicked_node, {
-      data <- graph_reactive()
-      node_id <- input$clicked_node
-      desc <- data$nodes$description[data$nodes$id == node_id]
-      
-      if (length(desc) == 0 || is.na(desc)) desc <- "(No description available)"
-      
-      showModal(modalDialog(
-        title = paste("Node:", data$nodes$label[data$nodes$id == node_id]),
-        desc,
-        easyClose = TRUE
-      ))
-    })
-      
-  # Clicks on focus graph nodes
-    observeEvent(input$clicked_focus_node, {
-      data <- focus_graph_reactive()
-      node_id <- input$clicked_focus_node
-      desc <- data$nodes$description[data$nodes$id == node_id]
-      
-      if (length(desc) == 0 || is.na(desc)) desc <- "(No description available)"
-      
-      showModal(modalDialog(
-        title = paste("Node:", data$nodes$label[data$nodes$id == node_id]),
-        desc,
-        easyClose = TRUE
-      ))
-    })
+  # Un clic sur un noeud montre l'equation qui le calcule.
+  # La description vit dans `meta`, pas dans la table passee a visNetwork :
+  # l'ancienne version la cherchait dans `nodes` apres un select() qui l'avait
+  # retiree, et affichait donc toujours "(No description available)".
+  observeEvent(input$clicked_node, {
+    data <- graph_reactive(); req(!is.null(data))
+    node_modal(input$clicked_node, data$meta)
+  })
+
+  observeEvent(input$clicked_focus_node, {
+    data <- focus_graph_reactive(); req(!is.null(data))
+    node_modal(input$clicked_focus_node, data$meta)
+  })
   # Hierarchique et physique s'excluent : cocher l'un decoche l'autre, par onglet.
   for (p in c("m_", "f_")) local({
     prefix <- p

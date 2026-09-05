@@ -15,6 +15,11 @@
 # ==============================================================================
 
 message("running the model ...")
+# Keep the source text of every function the model defines, so the viewer can
+# show the equation as it is written rather than as R deparses it — comments,
+# spacing and all. Must be set before the files are parsed.
+options(keep.source = TRUE)
+
 # run_model.r opens with rm(list = ls(all = TRUE)), so nothing defined before
 # this line survives it. Paths come back with it.
 suppressPackageStartupMessages({ library(here) })
@@ -73,6 +78,43 @@ nodes$description <- vapply(idx, function(i) {
 eqn <- unique(deps[, .(Variable, Equation)])
 nodes$equation <- eqn$Equation[match(nodes$label, eqn$Variable)]
 
+# --- the equations themselves -------------------------------------------------
+# One row per function, not per variable: a single equation often computes
+# several. The node table keeps the name as the key.
+eq_names <- sort(unique(na.omit(nodes$equation)))
+equations <- do.call(rbind, lapply(eq_names, function(nm) {
+  if (!exists(nm, envir = globalenv(), mode = "function")) {
+    return(data.frame(name = nm, file = NA_character_, line = NA_integer_,
+                      src = NA_character_, stringsAsFactors = FALSE))
+  }
+  f  <- get(nm, envir = globalenv(), mode = "function")
+  sr <- attr(f, "srcref")
+  if (is.null(sr)) {
+    # keep.source was off, or the function was built rather than parsed
+    return(data.frame(name = nm, file = NA_character_, line = NA_integer_,
+                      src = paste(deparse(f), collapse = "\n"),
+                      stringsAsFactors = FALSE))
+  }
+  path <- utils::getSrcFilename(f, full.names = TRUE)
+  data.frame(
+    name = nm,
+    file = sub(paste0("^", PROJECT_ROOT, "/"), "", path),
+    line = utils::getSrcLocation(f, "line"),
+    src  = paste(as.character(sr), collapse = "\n"),
+    stringsAsFactors = FALSE
+  )
+}))
+
+# --- where a lag lives --------------------------------------------------------
+# A lag or an init-read has no module of its own: it carries a variable that is
+# computed somewhere. Without this, every edge leaving a lag would be counted as
+# crossing a module boundary, which says nothing about the model's structure.
+bare <- sub("_(lag2|lag|lvl)$", "", nodes$label)
+nodes$home <- nodes$type
+lag_rows <- which(nodes$type == "lag")
+nodes$home[lag_rows] <- info$Module[match(bare[lag_rows], info$Name)]
+nodes$home[is.na(nodes$home)] <- "lag"   # carrier we could not trace back
+
 # --- appearance ---------------------------------------------------------------
 
 types <- sort(unique(nodes$type))
@@ -85,10 +127,12 @@ names(pal) <- types
 nodes$fillcolor <- pal[nodes$type]
 nodes$fillcolor[nodes$type == "lag"] <- "#F0F0F0"
 
-# a state is drawn differently from an auxiliary: it is what carries the past
-nodes$shape <- "circle"
-nodes$shape[nodes$type != "lag"] <- "rectangle"
-nodes$shape[nodes$kind == "state"] <- "square"
+# Shape carries Kind, colour carries the module: the two questions one asks of
+# a node are "what is it" and "where does it live", and they are orthogonal.
+# Only shapes that draw the label inside, so the graph stays readable.
+KIND_SHAPE <- c(state = "database", flow = "box", aux = "ellipse", lag = "text")
+nodes$shape <- unname(KIND_SHAPE[nodes$kind])
+nodes$shape[is.na(nodes$shape)] <- "ellipse"
 
 # --- edges by index, and the module of each end -------------------------------
 
@@ -100,18 +144,32 @@ edges <- edges[!is.na(edges$from) & !is.na(edges$to), ]
 edges$from_type <- nodes$type[edges$from]
 edges$to_type   <- nodes$type[edges$to]
 
-# an edge that leaves its module is what makes the model one model
-edges$crosses_module <- edges$from_type != edges$to_type
+edges$from_home <- nodes$home[edges$from]
+edges$to_home   <- nodes$home[edges$to]
 
-graph_obj <- list(nodes = nodes, edges = edges,
+# An edge that leaves its module is what makes the model one model rather than
+# eleven. Judged on `home`, so a lag is credited to the module it comes from.
+# An untraceable carrier is not counted either way: we do not know.
+edges$crosses_module <- edges$from_home != edges$to_home &
+                        edges$from_home != "lag" & edges$to_home != "lag"
+
+graph_obj <- list(nodes = nodes, edges = edges, equations = equations,
+                  kind_shape = KIND_SHAPE,
                   built = Sys.time(),
                   period = get("t", envir = globalenv()))
 
 dir.create(APP, recursive = TRUE, showWarnings = FALSE)
 save(graph_obj, file = OUT)
 
-cat(sprintf("%s\n  %d nodes (%d computed, %d entering from init)\n  %d edges, %d crossing a module\n  modules: %s\n",
+cat(sprintf(paste0("%s\n  %d nodes (%d computed, %d entering from init)\n",
+                   "  by kind: %s\n",
+                   "  %d edges, %d crossing a module (%d undecidable)\n",
+                   "  %d equations, %d with source (%d without)\n",
+                   "  modules: %s\n"),
     sub(paste0(PROJECT_ROOT, "/"), "", OUT),
     nrow(nodes), sum(nodes$type != "lag"), sum(nodes$type == "lag"),
+    paste(sprintf("%s %d", names(table(nodes$kind)), table(nodes$kind)), collapse = ", "),
     nrow(edges), sum(edges$crosses_module),
+    sum(edges$from_home == "lag" | edges$to_home == "lag"),
+    nrow(equations), sum(!is.na(equations$src)), sum(is.na(equations$src)),
     paste(setdiff(types, "lag"), collapse = ", ")))
