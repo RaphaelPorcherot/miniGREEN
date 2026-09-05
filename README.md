@@ -174,7 +174,8 @@ deleted — the policies may come back.
 │   ├── A-prep-steps/
 │   │   ├── 0-log-config.r      logging: levels, blocks, object listings
 │   │   ├── 1-custom-functions.r  engine: eq(), the table layer, keep, loaders
-│   │   └── 2-structure.r      dimensions, templates, modules, the states registry
+│   │   ├── 2-structure.r      dimensions, templates, modules, the states registry
+│   │   └── 3-invariants.r     what must hold at the end of every period (§9.2)
 │   ├── B-modules/         one file per module, one function per equation
 │   ├── assumptions.qmd
 │   ├── inconsistencies.qmd    Vensim bugs found and how they were fixed
@@ -928,24 +929,63 @@ changed.
 
 ### 9.2 The model's own invariants
 
-The original authors left consistency checks inside the Vensim model. They are
-ratios that should equal 1 or differences that should equal 0, and they test the
-economics rather than the code. They are ported as assertions run at the end of
-each period:
+Things that must be true at the end of every period, whatever the scenario.
+They live in `src/A-prep-steps/3-invariants.r` and run at the end of each
+period. `check_invariants()` reports **all** failures at once, not the first —
+when something is wrong you want the whole picture.
 
-| Check | Should be |
+Most of them are not ours. The authors of the Vensim model left `check ...` and
+`test ...` variables in it — ratios that should be 1, differences that should be
+0. They test the economics rather than the code, which is what is wanted here.
+
+Registering one:
+
+```r
+invariant("skill shares sum to 1 by industry",
+          function() max(abs(rowSums(SH_skill_is) - 1)),
+          expect = 0,
+          source = "",                     # the Vensim variable, if there is one
+          note   = "why this must hold")
+```
+
+Currently 14 registered, in four families:
+
+| | |
 |---|---|
-| `check IO1` = `sum(final demand nom i) / sum(VA i)` | 1 |
-| `check L is` = `sum(L i desired) / sum(Ld i s)` | 1 |
-| `check L tot` = `sum(Ld gis) / sum(L i desired)` | 1 |
-| `check inactive` = `Inactive_tot / sum(N olf gs)` | 1 |
-| `check PET` | 1 |
-| `test adult` = `pop - pop014 - adult pop` | 0 |
-| `test work pop` = `working age pop total tot / working age pop total` | 1 |
+| **accounting identities** | active = employed + unemployed; working age = active + inactive; population = working age + children + capitalists + retired; desired labour adds up over gender and group |
+| **shares are shares** | skill shares sum to 1 by industry; male shares in [0,1]; energy source shares sum to 1 |
+| **structural zeros** | no employment, and no working-age population, in `child` or `cap`; nobody of working age under 15 or over 64 |
+| **signs and finiteness** | population, employment and unemployment non-negative; every state finite |
 
-To which the R model adds `check_population_consistency()`:
-active = employed + unemployed, working age = active + inactive, and total
-population equal to the sum of its demographic components.
+**A check whose inputs do not exist yet is skipped, not failed.** Most of the
+model is still commented out of the main loop, and an invariant on a variable
+that is not computed says nothing. Skipped checks are counted and named, so they
+cannot quietly stay skipped for ever.
+
+#### Write checks that can fail
+
+This is the part that matters, and it is easy to get wrong twice over.
+
+The guard on `SH_skill_is` read `!all(rowSums(x) - 1) < tolerance`, which
+collapses a numeric vector to one logical before comparing and returns `FALSE`
+for a row summing to three. It had never fired — while the bug it was written to
+catch was live.
+
+The second way is subtler. A first version of the population invariant here read
+
+```r
+sum(pop) - sum(pop["0-14", , ]) - sum(pop[setdiff(cohort, "0-14"), , ])
+```
+
+which is **zero whatever the array holds**: total minus children minus
+everything-but-children. Slicing one array two ways cannot produce a
+disagreement. Vensim's `test adult` is meaningful because it compares three
+variables computed by three *different* equations. The R version now compares
+`ST_workAgePop_csg`, which `workingAgePop()` derives by masking, against a
+decomposition of the population it was derived from — so a wrong mask shows up.
+
+Both were caught by testing the tests: break each invariant deliberately, one at
+a time, and confirm it fires. All 14 do. An untested check is a comment.
 
 ---
 
@@ -1187,7 +1227,7 @@ git push -u origin dev/my-thing
   memory, so that a later reader knows the question was asked. The rule when
   retranslating an equation: check `src/inconsistencies.qmd` first, so that a
   bug already found is not reintroduced.
-* `r-REWIND-inconsistencies.qmd` needs to be replayed against
+* `inconsistencies.qmd` needs to be replayed against
   `vensim_model_2026.txt`: some of the bugs found may have been fixed upstream,
   some may not, and some of the 2026 simplifications may rest on the buggy
   behaviour. Findings go into `inconsistencies_new.md`.

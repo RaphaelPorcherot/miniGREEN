@@ -1178,42 +1178,6 @@ eq <- function(expr_block) {
 }
 
 
-# ----------------------------------------------------------------------------------------------------------
-# Preventing hallucinations and other controls
-# ----------------------------------------------------------------------------------------------------------
-
-# To make sure nothing weird is happening with population --------------------------------------------------
-check_population_consistency <- function() {
-  total_active <- sum(ST_activePop_csg)
-  total_employed <- sum(ST_labEmp_isg)
-  total_unemployed <- sum(ST_labUnemp_sg)
-
-  if (total_active != (total_employed + total_unemployed)) {
-    stop("❌ Inconsistency: Active population ≠ Employed + Unemployed.")
-  }
-
-  total_workage <- sum(ST_workAgePop_csg)
-  total_inactive <- sum(ST_inactivePop_sg)
-
-  if (total_workage != (total_active + total_inactive)) {
-    stop("❌ Inconsistency: Working-age population ≠ Active + Inactive.")
-  }
-
-  total_pop <- sum(Pop_lvl)
-  pop_children <- sum(Pop_lvl[, "child", ])
-  pop_capitalists <- sum(Pop_lvl[, "cap", ])
-  pop_retired <- sum(Pop_lvl["65+", , ])
-  pop_overlap_retired_cap <- sum(Pop_lvl["65+", "cap", ])
-
-  decomposed_pop <- total_workage + pop_children + pop_capitalists + pop_retired - pop_overlap_retired_cap
-
-  if (total_pop != decomposed_pop) {
-    stop("❌ Inconsistency: Total population ≠ Sum of demographic components.")
-  }
-
-  message("✅ Population is consistent: no one is missing or in excess.")
-}
-
 # ~~~~~~~ #
 # THE END #
 # ~~~~~~~ #

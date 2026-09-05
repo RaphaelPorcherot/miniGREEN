@@ -48,6 +48,7 @@ input_dir <- DIR_INPUT
 source(path_prep("0-log-config.r"))
 source(path_prep("1-custom-functions.r"))
 source(path_prep("2-structure.r"))
+source(path_prep("3-invariants.r"))
 
 #============================================================================
 # STEP 0 — Build the four tables
@@ -714,9 +715,9 @@ eq_run_passes(max_passes = max_passes, body = function() {
     
 })
 
-    # ~~~~~~~~ This should come after L else it will throw an error ~~~~~~~~
-    check_population_consistency() # with beginning-of-period Pop_lvl
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Everything that must be true at the end of a period, whatever the scenario.
+# See src/A-prep-steps/3-invariants.r.
+check_invariants()
 
 #============================================================================
 # STEP 5 — Save
