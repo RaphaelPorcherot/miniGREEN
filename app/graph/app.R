@@ -3,10 +3,10 @@ library(bslib)
 library(visNetwork)
 library(dplyr)
 
-# Charger le graphe
+# The viewer reads one file and runs nothing: tool/build-graph.r produced it.
 load("graph_obj.RData")
 
-# Largeur et hauteur dynamiques
+# Fill whatever the card gives us
 h <- "100%"
 w <- "100%"
 
@@ -18,27 +18,27 @@ nodes     <- graph_obj$nodes
 edges     <- graph_obj$edges
 equations <- graph_obj$equations
 
-# Kind dit ce qu'est un objet, le module dit ou il vit : deux questions
-# orthogonales, portees l'une par la forme, l'autre par la couleur.
+# Kind says what an object is, the module says where it lives: two orthogonal
+# questions, carried by shape and colour respectively.
 KIND_ORDER <- c("state", "flow", "aux", "lag")
-KIND_GLOSS <- c(state = "stock, porte le passe",
-                flow  = "ce qui fait bouger un stock",
-                aux   = "calcule puis oublie",
-                lag   = "entre par init")
-SHAPE_GLOSS <- c(database = "cylindre", box = "boite",
-                 ellipse = "ellipse", text = "sans cadre")
+KIND_GLOSS <- c(state = "a stock, carries the past",
+                flow  = "what moves a stock",
+                aux   = "computed then forgotten",
+                lag   = "enters from init")
+SHAPE_GLOSS <- c(database = "cylinder", box = "box",
+                 ellipse = "ellipse", text = "no border")
 
 kinds_present <- KIND_ORDER[KIND_ORDER %in% unique(nodes$kind)]
 kind_counts   <- table(nodes$kind)
 
-EDGE_CROSS  <- "#C0392B"   # une arete qui sort de son module
+EDGE_CROSS  <- "#C0392B"   # an edge that leaves its module
 EDGE_WITHIN <- "#B0B0B0"
 
 # ------------------------------------------------------------------------------------------------
-                                            # Fonctions #
+                                          # Functions #
 # ------------------------------------------------------------------------------------------------
 
-# Fonction pour barycentres (graph principal)
+# Barycentres, one band per module (main graph)
 set_node_positions <- function(nodes_df) {
   set.seed(42)
   
@@ -65,7 +65,7 @@ set_node_positions <- function(nodes_df) {
 }
 
 
-# Fonction pour focus graph avec padding et X fixe
+# Focus graph: pad the zones and pin X by depth
 set_focus_positions <- function(nodes_df, edges_df, focus_id, up, down) {
   set.seed(42)
   
@@ -100,29 +100,29 @@ set_focus_positions <- function(nodes_df, edges_df, focus_id, up, down) {
     filter(!is.na(deg)) |>
     mutate(deg = pmin(pmax(deg, -5), 5))
   
-  # Nombre de zones = 11 (de -5 à 5)
+  # 11 zones, from -5 to 5
   zone_count <- 11
   total_padding <- 0.01  # padding entre zones
   effective_zone_width <- (1 - total_padding * zone_count) / zone_count
   
-  # Fonction pour X fixe par deg
+  # Fixed X per depth
   get_x_fixed <- function(deg) {
-    idx <- deg + 6  # de [-5,5] à [1,11]
+    idx <- deg + 6  # [-5,5] -> [1,11]
     start <- (idx - 1) * (effective_zone_width + total_padding) + total_padding / 2
-    start + effective_zone_width / 2  # centre de la zone
+    start + effective_zone_width / 2  # centre of the zone
   }
   
   nodes_df <- nodes_df |>
     mutate(
       x=NA, #x = get_x_fixed(deg),
-      y = NA  # laisse à la physique gérer Y
+      y = NA  # let the physics handle Y
     )
 
   return(nodes_df)
 }
 
 
-# Filtres de lecture du graphe, un jeu par onglet.
+# Reading filters, one set per tab.
 filter_controls <- function(p) {
   id <- function(x) paste0(p, x)
   labels <- lapply(kinds_present, function(k) {
@@ -135,19 +135,19 @@ filter_controls <- function(p) {
                        choiceNames = labels, choiceValues = kinds_present,
                        selected = kinds_present),
     radioButtons(id("edge_scope"), "Edges:",
-                 choiceNames  = c("Toutes", "Inter-modules seulement", "Intra-module seulement"),
+                 choiceNames  = c("All", "Cross-module only", "Within-module only"),
                  choiceValues = c("all", "cross", "intra"), selected = "all"),
     helpText(HTML(paste0(
-      "Les aretes inter-modules sont en <span style='color:", EDGE_CROSS,
-      "'><b>rouge</b></span>. Une arete dont un bout est un porteur non trace",
-      " n'est comptee ni dans un sens ni dans l'autre."))),
+      "Cross-module edges are drawn in <span style='color:", EDGE_CROSS,
+      "'><b>red</b></span>. An edge with an untraced carrier at either end",
+      " counts as neither."))),
     tags$hr()
   )
 }
 
-# Les deux onglets proposent les memes reglages de layout. Ils doivent porter
-# des identifiants distincts : Shiny ne lie que la premiere occurrence d'un id,
-# donc la seconde copie de ces controles etait inerte.
+# Both tabs offer the same layout settings. They must carry distinct ids:
+# Shiny binds only the first occurrence of an id, so the second copy of these
+# controls used to be inert.
 layout_controls <- function(p) {
   id <- function(x) paste0(p, x)
   tagList(
@@ -184,16 +184,16 @@ layout_controls <- function(p) {
       helpText("Stiffness of the springs between nodes."),
       numericInput(id("phys_damping"), "Damping:", value = 0.5, min = 0, max = 1, step = 0.01),
       helpText("Amount of friction to slow down node movement."),
-      # vis.js attend ici un nombre entre 0 et 1, pas un booleen.
+      # vis.js wants a number between 0 and 1 here, not a boolean.
       numericInput(id("phys_avoidoverlap"), "Avoid node overlap:", value = 0, min = 0, max = 1, step = 0.1),
       helpText("0 = nodes may overlap, 1 = maximum repulsion between nodes.")
     )
   )
 }
 
-# Applique les filtres de l'onglet p. `keep_ids` echappe au filtre par kind :
-# c'est la variable sur laquelle on a demande le focus, la retirer viderait
-# l'ecran sans rien dire.
+# Apply tab p's filters. `keep_ids` escapes the kind filter: it is the variable
+# the focus was asked for, and dropping it would empty the screen without
+# saying anything.
 apply_filters <- function(nodes_sub, edges_sub, input, p, keep_ids = integer(0)) {
   g <- function(x) input[[paste0(p, x)]]
 
@@ -211,7 +211,7 @@ apply_filters <- function(nodes_sub, edges_sub, input, p, keep_ids = integer(0))
   list(nodes = nodes_sub, edges = edges_sub)
 }
 
-# Une arete qui franchit une frontiere de module se voit.
+# An edge that crosses a module boundary should be visible as such.
 style_edges <- function(e) {
   if (nrow(e) == 0) return(data.frame(from = integer(0), to = integer(0)))
   data.frame(
@@ -226,7 +226,7 @@ style_edges <- function(e) {
   )
 }
 
-# L'infobulle repond a "qu'est-ce que c'est", la modale a "comment c'est calcule".
+# The tooltip answers "what is this", the modal answers "how is it computed".
 node_tooltip <- function(n) {
   paste0("<b>", n$label, "</b><br>", n$kind, " &middot; ", n$type,
          ifelse(!is.na(n$equation), paste0("<br><code>", n$equation, "()</code>"), ""))
@@ -243,8 +243,8 @@ node_modal <- function(node_id, meta) {
     tags$p(tags$span(class = "badge bg-secondary", n$kind), " ",
            tags$span(class = "badge bg-light text-dark", n$type),
            if (!is.na(n$home) && n$home != n$type)
-             tags$small(paste0("  porte une variable de ", n$home))),
-    tags$p(if (is.na(n$description)) tags$em("pas de description dans le modele")
+             tags$small(paste0("  carries a variable from ", n$home))),
+    tags$p(if (is.na(n$description)) tags$em("no description in the model")
            else n$description),
     if (!is.null(eq) && !is.na(eq$src)) tagList(
       tags$hr(),
@@ -254,11 +254,11 @@ node_modal <- function(node_id, meta) {
                              "padding:12px; border-radius:4px; font-size:12px;"),
                eq$src)
     ) else tags$p(tags$hr(), tags$em(
-      "aucune equation ne calcule cet objet : il entre par init."))
+      "no equation computes this object: it enters from init."))
   ))
 }
 
-# Applique au reseau les reglages de layout de l'onglet prefixe par p.
+# Apply the layout settings of the tab prefixed by p to the network.
 apply_layout <- function(net, input, p) {
   g <- function(x) input[[paste0(p, x)]]
   if (isTRUE(g("enable_hierarchical"))) {
@@ -370,8 +370,8 @@ server <- function(input, output, session) {
 
     nodes_sub <- set_node_positions(nodes_sub)
 
-    # La forme vient de `kind`, telle que build-graph.r l'a decidee ; la couleur
-    # vient du module. On ne la recalcule pas ici.
+    # Shape comes from `kind` as build-graph.r decided it, colour from the
+    # module. Neither is recomputed here.
     nodes_df <- data.frame(
       id = nodes_sub$id, label = nodes_sub$label,
       group = nodes_sub$type, color = nodes_sub$fillcolor,
@@ -416,9 +416,9 @@ server <- function(input, output, session) {
   
   output$module_title <- renderText({
     data <- graph_reactive()
-    if (is.null(data)) return("Aucun objet ne passe les filtres.")
+    if (is.null(data)) return("No object passes the filters.")
     n_lag <- sum(data$meta$type == "lag")
-    sprintf("Module: %s | %d objets (%d calcules, %d venus d'init) | %d aretes, dont %d inter-modules",
+    sprintf("Module: %s | %d objects (%d computed, %d from init) | %d edges, %d of them cross-module",
             input$select_graph, nrow(data$meta), nrow(data$meta) - n_lag, n_lag,
             nrow(data$edges), data$n_cross)
   })
@@ -486,18 +486,18 @@ server <- function(input, output, session) {
     nodes_sub <- nodes |> filter(id %in% ids)
     edges_sub <- edges |> filter(from %in% ids & to %in% ids)
 
-    # La variable au centre survit au filtre par kind : la retirer viderait
-    # l'ecran sans rien apprendre.
+    # The variable at the centre survives the kind filter: dropping it would
+    # empty the screen without teaching anything.
     kept <- apply_filters(nodes_sub, edges_sub, input, "f_", keep_ids = current_id)
     nodes_sub <- kept$nodes; edges_sub <- kept$edges
     if (nrow(nodes_sub) == 0) return(NULL)
 
     nodes_sub <- set_focus_positions(nodes_sub, edges_sub, focus_id = current_id, up = up, down = down)
-    # set_focus_positions retraverse le graphe avec les aretes filtrees : un
-    # filtre serre peut n'y laisser plus rien.
+    # set_focus_positions walks the graph again with the filtered edges: a
+    # tight filter can leave nothing behind.
     if (nrow(nodes_sub) == 0) return(NULL)
 
-    # Le foyer garde sa forme (donc son kind) et se signale par son cadre.
+    # The focus keeps its shape, hence its kind, and is marked by its border.
     is_focus <- nodes_sub$id == current_id
     nodes_df <- data.frame(
       id = nodes_sub$id, label = nodes_sub$label,
@@ -570,16 +570,16 @@ server <- function(input, output, session) {
   output$focus_title <- renderText({
     req(input$focus_var)
     data <- focus_graph_reactive()
-    if (is.null(data)) return(paste0("Focus on: ", input$focus_var, " | rien a montrer"))
-    sprintf("Focus on: %s (up %d, down %d) | %d objets, %d aretes, dont %d inter-modules",
+    if (is.null(data)) return(paste0("Focus on: ", input$focus_var, " | nothing to show"))
+    sprintf("Focus on: %s (up %d, down %d) | %d objects, %d edges, %d of them cross-module",
             input$focus_var, input$focus_up, input$focus_down,
             nrow(data$meta), nrow(data$edges), data$n_cross)
   })
   
-  # Un clic sur un noeud montre l'equation qui le calcule.
-  # La description vit dans `meta`, pas dans la table passee a visNetwork :
-  # l'ancienne version la cherchait dans `nodes` apres un select() qui l'avait
-  # retiree, et affichait donc toujours "(No description available)".
+  # Clicking a node shows the equation that computes it.
+  # The description lives in `meta`, not in the table handed to visNetwork: the
+  # old version looked for it in `nodes` after a select() had dropped it, and so
+  # always showed "(No description available)".
   observeEvent(input$clicked_node, {
     data <- graph_reactive(); req(!is.null(data))
     node_modal(input$clicked_node, data$meta)
@@ -589,7 +589,8 @@ server <- function(input, output, session) {
     data <- focus_graph_reactive(); req(!is.null(data))
     node_modal(input$clicked_focus_node, data$meta)
   })
-  # Hierarchique et physique s'excluent : cocher l'un decoche l'autre, par onglet.
+  # Hierarchical and physics exclude each other: ticking one unticks the other,
+  # per tab.
   for (p in c("m_", "f_")) local({
     prefix <- p
     observeEvent(input[[paste0(prefix, "enable_hierarchical")]], {
