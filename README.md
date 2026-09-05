@@ -129,7 +129,8 @@ Modules:
 | `C` | Consumption | `ENV` | Environment |
 | `I` | Investment | `CADA` | Carbon tax and damage function |
 
-`WD` (water demand) and `WS` (water supply) are declared but out of scope for now.
+`WD` and `WS` are declared as modules but barely present in either Vensim
+model. See §13 for what each untranslated module actually contains.
 
 ### What changed between the 2025 and the 2026 Vensim model
 
@@ -139,9 +140,9 @@ were removed and 72 added.
 **Removed** — the whole policy panel (`Act_*`, basic income, job guarantee, work
 time reduction, minimum and maximum wage, wealth tax, phase-out schedules,
 carbon tax redistribution), most of the inequality apparatus (Gini/Theil/Palma
-collapsed into a single `GINI yd`), the time-use module, and the eight `caseN_i`
-technology variables (now a single `cases T i` indexed on a `cases Tech`
-subscript).
+collapsed into a single `GINI yd`), the time-use module — ~110 lines in 2025,
+nothing but an orphaned input array in 2026 — and the eight `caseN_i` technology
+variables (now a single `cases T i` indexed on a `cases Tech` subscript).
 
 **Added** — PNRR (Italian recovery plan) spending, climate damage and
 temperature, a genuine financial block (`stock of bonds`, `interest`, `debt i`),
@@ -1203,12 +1204,28 @@ git push -u origin dev/my-thing
 
 ### Open
 
-* **`FI` (finance) is new in the 2026 model and is in scope.** It brings 8 of the
-  35 states — `stock of bonds`, `interest`, `debt i`, and `b`/`d`/`eq` by
-  household group and for capitalists — plus the accounting identities that go
-  with them. It has no counterpart in the current R code and has to be written
-  from scratch.
-* `TU`, `PVA`, `ENV`, `WD`, `WS` modules not started, and not in scope for now.
+* **Modules with no R file yet.** "Still there" means the 2026 model has its
+  equations, so it has to be translated; "gone" means the 2026 model dropped it,
+  so there is nothing left to translate.
+
+  | Module | 2025 | 2026 | |
+  |---|---|---|---|
+  | `FI` finance | yes | **yes**, plus `stock of bonds` and `interest` | to translate — 8 of the 35 states, and the accounting identities that go with them |
+  | `PVA` profits, VA | yes | **yes** | to translate |
+  | `ENV` environment | yes | **yes** | to translate |
+  | `WS` water supply | yes | **yes** | to translate |
+  | `WD` water demand | marginal | marginal | barely present in either; check before starting |
+  | `TU` time use | yes, ~110 lines | **gone** | nothing to translate |
+
+  `FI` is not new: `b`/`d`/`eq` by household group and for capitalists, and
+  `debt i`, have identical equations in both models. Only `stock of bonds` and
+  `interest` were added in 2026.
+
+  `TU` is the reverse: a working module in 2025, removed in 2026. What survives
+  is `init time use dt[inc cat,timeuse]`, an initial-values array that appears
+  in its own definition and in the sketch metadata and nowhere else — an
+  orphaned input for a module that no longer exists. The `timeuse` subscript is
+  likewise still declared and indexes nothing.
 * Calibration. `run_model(params = NULL, scenario = NULL)` exists as the entry
   point but no calibration procedure is written. Block calibration — module by
   module, holding the rest fixed — is the realistic approach for a model with
