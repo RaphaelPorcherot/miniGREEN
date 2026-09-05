@@ -75,9 +75,11 @@ Disagreeing is not proof of an error. Three innocent reasons for a `medium`:
 | `POL_trendEntrySkill` | `R_trendEntrySkill_sg` |  |  | none |
 | `birth` | `F_birth_csg` |  |  | none |
 | `death` | `F_death_csg` |  |  | none |
+| `flowPopulation` | `F_population_csg` | `in skills 4564 gs` and the matching in/out/deaths flows | 6384 | high |
 | `endCurrentPeriodPop` | `ST_population_csg` |  |  | none |
 | `maturationIn` | `incomingPop` |  |  | none |
 | `maturationOut` | `F_maturationOut_csg` |  |  | none |
+| `smoothSkillShift` | `R_smoothSkillShift_s` | — *written inline by Vensim, never named* | 1329 | added |
 | `skillShiftAllPop` | `PopSkillShift` |  |  | none |
 | `skillShiftIncomingPop` | `F_maturationIn_csg` |  |  | none |
 
@@ -136,7 +138,6 @@ Disagreeing is not proof of an error. Three innocent reasons for a `medium`:
 | `realCapitalDepreciation` | `F_KrealDepr_i` | `depreciation K i` | 5295 | checked |
 | `realCapitalDepreciation_lag` | `F_KrealDepr_i_lag` | `depreciation K delay i` | 5290 | checked |
 | `realCapitalStock` | `ST_Kreal_i` | `K i` | 6996 | checked |
-| `realCapitalStock_lag2` | `ST_Kreal_i_lag2` | `K delay i` | 6991 | checked |
 | `realInvestmentDemand` | `F_GFCFreal_i` | `GFCF real i` | 3220 | checked |
 
 ## TR — International trade
@@ -172,13 +173,19 @@ Disagreeing is not proof of an error. Three innocent reasons for a `medium`:
 | `incomeExpectation` | `F_expIncome_sg` | `exp inc e gs` | 3406 | checked |
 | `incomeExpectation_lag` | `F_expIncome_sg_lag` |  |  | none |
 | `shift_LabourForceParticipationRate` | `R_LFRP_csg` |  |  | none |
+| `flowMaleLabourShare` | `F_maleShare_is` | `in male share is` | 6143 | checked |
 | `shift_MaleLabourShare` | `SH_male_is` |  |  | none |
+| `flowSkillLabourShare` | `F_skillShare_is` | `in skill trend is` | 6378 | checked |
 | `shift_SkillLabourShare` | `SH_skill_is` |  |  | none |
 | `unemployedLabour` | `ST_labUnemp_sg` | `L u gs`, `labour supply gs`, `L gs` | 7043 | checked |
 | `unemploymentRate_s` | `R_u_s` |  |  | none |
 | `unemploymentRate_sg` | `R_u_sg` |  |  | none |
 | `workingAgePop` | `ST_workAgePop_csg` | `Working age population cgs` | 3390 | medium |
 
+* **`smoothSkillShift`** — Vensim writes `smooth(...)` inline at each use rather
+  than declaring a variable for it, so there is no name to map to. A SMOOTH is a
+  hidden stock; it is declared here as a state of its own. See
+  `inconsistencies_new.md`.
 * **`desiredLabour_isg`** — Added while correcting the 2025 model: without it firms could hire as many workers as they wanted even when none were left. See `src/inconsistencies.qmd`, *ST_EmpLab_i — unemployment may be negative*.
 
 ## GOV — Government
@@ -251,77 +258,260 @@ Disagreeing is not proof of an error. Three innocent reasons for a `medium`:
 
 ## Not translated yet
 
-706 of the 792 variables in `vensim_model_2026.txt` are not claimed by any row above. Some are genuinely still to do; some are already covered by a function whose row is `none`. Working through those rows is what shrinks this list.
+698 of the 792 variables in `vensim_model_2026.txt` are not claimed by any row above. Some are genuinely still to do; some are already covered by a function whose row is `none`. Working through those rows is what shrinks this list.
 
 <details><summary>Show the list</summary>
 
 | Vensim | Line |
 |---|---|
-| `ACT TECH` | 1428 |
-| `Act CT redistrib` | 4601 |
-| `Act PNRR` | 4152 |
+| `a delay ii` | 4567 |
+| `a delay2 ii` | 4429 |
+| `a diffusion ii` | 4572 |
+| `a i delay` | 7 |
+| `a i row` | 32 |
+| `a i0` | 56 |
+| `a param beta distribution i` | 3835 |
+| `a param beta distribution i[ind] :EXCEPT:` |  |
+| `a T iiv` | 551 |
 | `Act adapt` | 4587 |
 | `Act carbon tax` | 4594 |
+| `Act CT redistrib` | 4601 |
 | `Act econ damage` | 1507 |
 | `Act elast beta` | 4608 |
 | `Act gradual adapt CT hh` | 4615 |
+| `Act PNRR` | 4152 |
+| `ACT TECH` | 1428 |
 | `Act w eff` | 1550 |
+| `adaptation` | 4548 |
+| `adaptation sensitivity` | 4623 |
+| `adaptation spend` | 4533 |
+| `adult population gs` | 4632 |
+| `adult population s` | 4638 |
+| `alpha AGR` | 3528 |
+| `av daily work hours gs` | 1252 |
+| `av infl cum d delay` | 4160 |
+| `av infl cumulative d` | 879 |
+| `average propensity to consume` | 4650 |
+| `b cap` | 4662 |
+| `b gs` | 4674 |
+| `b param beta distribution i` | 3797 |
+| `b param beta distribution i[ind] :EXCEPT:` |  |
+| `b0 cap` | 342 |
+| `b0 s` | 332 |
+| `base VAT rate` | 1491 |
+| `bbb` | 4681 |
+| `benefit per child` | 4686 |
+| `beta initial dp` | 4749 |
+| `births g` | 4754 |
+| `c dom nom` | 4794 |
+| `c dom real i` | 4805 |
+| `c imp nom i` | 4810 |
+| `c imp real i` | 4816 |
+| `c inc d` | 936 |
+| `c real i delay` | 4846 |
+| `c total nom` | 4857 |
+| `c total real` | 4862 |
 | `C19 cons 2020` | 4868 |
-| `CB spend` | 4981 |
-| `CO2` | 5007 |
-| `CO2 ETS i` | 5019 |
-| `CO2 Nace tot` | 5044 |
-| `CO2 fd hh nrg` | 5024 |
-| `CO2 hh tot` | 5034 |
-| `CO2 nrg` | 5049 |
-| `CO2 nrg i` | 5054 |
-| `CP SW i` | 3448 |
-| `CPI` | 5202 |
+| `c19 cons 2021` | 4874 |
+| `c19 exp 2020` | 4880 |
+| `c19 exp 2021` | 4886 |
+| `c19 imp 2020` | 4892 |
+| `c19 imp 2021` | 4898 |
+| `c19 inv 2020` | 4904 |
+| `c19 inv 2021` | 4910 |
+| `c19 LFPR 2020` | 4217 |
+| `c19 LFPR 2021` | 4228 |
+| `c19 LFPR 2022` | 4235 |
+| `c19 shock cons` | 4916 |
+| `c19 shock exp` | 4409 |
+| `c19 shock imp` | 4922 |
+| `c19 shock inv` | 4927 |
+| `cap prod i` | 4933 |
 | `Carbon tax hh d` | 4947 |
 | `Carbon tax hh tot` | 4952 |
 | `Carbon tax nace` | 4963 |
 | `Carbon tax tot` | 4976 |
+| `cases T i` | 665 |
+| `CB spend` | 4981 |
+| `change coeff BLUE GW agr` | 3572 |
+| `change coeff BLUE SW agr` | 3584 |
+| `check inactive` | 348 |
+| `check IO1` | 2 |
+| `check L tot` | 750 |
+| `check PET` | 3618 |
+| `check\_share\_sources i` |  |
+| `child benef gs` | 4986 |
+| `climate damage A` | 1462 |
 | `Co GW` | 3297 |
 | `Co SW` | 3310 |
+| `CO2` | 5007 |
+| `CO2 ETS i` | 5019 |
+| `CO2 fd hh nrg` | 5024 |
+| `CO2 hh tot` | 5034 |
+| `CO2 Nace tot` | 5044 |
+| `CO2 nrg` | 5049 |
+| `CO2 nrg i` | 5054 |
+| `coef CO2 to GHG fd hh` | 5068 |
+| `coef CO2 to GHG i` | 5074 |
+| `coef Ed to C fd hh nrg` | 5081 |
+| `coef Ed to C nrg i` | 5088 |
+| `coef NIC to GIEC` | 5102 |
+| `coeff adj BLUE GW i` | 1587 |
+| `coeff adj BLUE GW i[ind] :EXCEPT:` |  |
+| `coeff adj BLUE SW i` | 1560 |
+| `coeff adj BLUE SW i[ind] :EXCEPT:` |  |
+| `coeff adj GREEN agr` | 3675 |
+| `coeff BLUE i` | 1536 |
+| `coeff Co` | 3378 |
+| `coeff conv mm to Mm3` | 3728 |
+| `coeff E C to CO2 hh nrg` | 5109 |
+| `coeff E C to CO2 nrg i` | 5119 |
+| `coeff GREEN agr` | 3764 |
+| `coeff intens BLUE GW i` | 3784 |
+| `coeff intens BLUE GW i[ind] :EXCEPT:` |  |
+| `coeff intens BLUE SW i` | 3777 |
+| `coeff intens BLUE SW i[ind] :EXCEPT:` |  |
+| `coeff irrigation eff` | 3716 |
+| `coeff P` | 3722 |
+| `coeff T` | 3104 |
+| `coefficient of Dilution GW i` | 3497 |
+| `coefficient of Dilution SW i` | 3129 |
+| `cohort years c` | 5144 |
+| `const Co GW` | 3347 |
+| `const PET` | 3682 |
+| `convergence` | 5179 |
+| `conversion` | 4501 |
+| `corp tax i` | 5185 |
+| `corp tax rate` | 5191 |
+| `corp tax rev` | 5197 |
 | `Cp GW i` | 3423 |
+| `CP SW i` | 3448 |
+| `CPI` | 5202 |
 | `Cs GW i` | 3485 |
 | `Cs SW i` | 3491 |
+| `d Aii T` | 540 |
+| `d cap` | 5208 |
+| `d gs` | 5215 |
+| `d lambda T i` | 562 |
+| `d0 cap` | 5222 |
+| `d0 s` | 5228 |
+| `damage` | 4559 |
+| `damage beta distribution i` | 3817 |
+| `damage beta distribution i[ind] :EXCEPT:` |  |
+| `damage multiplier delay i` | 5238 |
+| `damage multiplier i` | 3827 |
+| `damage multiplier i[ind] :EXCEPT:` |  |
+| `deaths 1524 gs` | 1385 |
+| `deaths 2544 gs` | 1351 |
+| `deaths 4564 gs` | 1356 |
+| `deaths 65+ gs` |  |
+| `deaths014 g` | 5243 |
+| `deaths1524 g` | 5248 |
+| `deaths2544 g` | 5253 |
+| `deaths4564 g` | 5258 |
+| `deaths65+ g` |  |
+| `debt gdp` | 5268 |
+| `debt i` | 5273 |
+| `debt repayment i` | 5279 |
+| `def gdp` | 5284 |
+| `delta a T2 ii` | 711 |
+| `delta a T3 ii` | 684 |
+| `delta a T4 ii` | 597 |
+| `delta damage multiplier i` | 1512 |
+| `delta e inc gs` | 729 |
+| `delta lambda T2 i` | 642 |
+| `delta lambda T3 i` | 654 |
+| `delta lambda T4 i` | 631 |
+| `depreciation rates i` | 5300 |
+| `dg A i` | 12 |
 | `Div i` | 5343 |
 | `Div rate` | 5357 |
 | `Dmnl Euro 1` | 4359 |
 | `Dmnl Year` | 4414 |
 | `Dmnl year 1` | 4419 |
-| `E C Z i` | 5426 |
-| `E C Ztot` | 5431 |
+| `draw T2 i` | 5383 |
+| `draw T3 i` | 5389 |
+| `draw T4 i` | 5395 |
+| `duration adapt` | 5401 |
+| `duration skill transition` | 4496 |
+| `e` | 792 |
 | `E C hh nrg` | 5408 |
 | `E C nrg i` | 5413 |
+| `E C Z i` | 5426 |
+| `E C Ztot` | 5431 |
+| `E fd hh imp i` | 5436 |
+| `e g` | 798 |
+| `e gs` | 778 |
+| `e s` | 5441 |
 | `E Zdom ii` | 5447 |
 | `E Zimp i` | 5455 |
-| `E fd hh imp i` | 5436 |
+| `eco flow R` | 3607 |
 | `Ecoef Exp i` | 5460 |
-| `Ecoef Zimp i` | 5478 |
 | `Ecoef fd imp` | 5467 |
+| `Ecoef Zimp i` | 5478 |
 | `Ecoeff fd hh i` | 5486 |
-| `Ed Z Res i` | 5546 |
-| `Ed Z Res tot` | 5551 |
-| `Ed Z i` | 5522 |
-| `Ed Z nrg` | 5528 |
-| `Ed Z nrg i` | 5533 |
-| `Ed Z tot i` | 528 |
-| `Ed Z tot public i` | 535 |
 | `Ed fd hh dom` | 5493 |
 | `Ed fd hh dom i` | 5498 |
 | `Ed fd hh imp tot` | 5504 |
 | `Ed fd hh nrg` | 451 |
 | `Ed fd hh tot` | 5509 |
 | `Ed to Residual i` | 5514 |
+| `Ed Z i` | 5522 |
+| `Ed Z nrg` | 5528 |
+| `Ed Z nrg i` | 5533 |
+| `Ed Z Res i` | 5546 |
+| `Ed Z Res tot` | 5551 |
+| `Ed Z tot i` | 528 |
+| `Ed Z tot public i` | 535 |
+| `elast p exp` | 5556 |
+| `en eff size` | 5562 |
+| `eq cap` | 5568 |
+| `eq gs` | 5575 |
+| `eq0 cap` | 5582 |
+| `eq0 s` | 5588 |
+| `equity delay i` | 5598 |
 | `Equity i` | 5603 |
 | `Equity initial i` | 5608 |
+| `equity to liabilities ratio` | 5614 |
+| `error I` | 3771 |
+| `error PET` | 3623 |
+| `error R` | 3630 |
 | `Euro 0` | 4399 |
+| `euro 1` | 4384 |
 | `Euro constant 1` | 4424 |
 | `Euro good 1` | 4344 |
+| `euro goods 1` | 4394 |
+| `exog g gov c` | 1440 |
+| `exp damage i` | 3849 |
+| `exp damage i[ind] :EXCEPT:` |  |
+| `exp damage normalized i` | 3807 |
+| `exp damage normalized i[ind] :EXCEPT:` |  |
+| `exp inc e delay gs` | 5626 |
+| `exp inc e gs[gender,skill] :EXCEPT:` |  |
+| `exp inc e initial gs` | 5631 |
+| `exp initial i` | 5636 |
+| `expectetion y real` | 138 |
+| `feasible GW Mm3` | 3159 |
+| `feasible SW Mm3` | 3175 |
+| `feasible Water Supply Mm3` | 3191 |
+| `fertility rate` | 5644 |
+| `fin tax cap` | 5650 |
+| `fin tax gs` | 5656 |
+| `fin tax rev` | 5662 |
+| `final demand nom i` | 5670 |
 | `FINAL TIME` | 9697 |
+| `financial income tax rate` | 5682 |
 | `Full capacity contraint` | 5724 |
+| `g A i` | 61 |
+| `g exp` | 50 |
+| `g exp inc e gs` | 734 |
+| `g GDP nom` | 5743 |
+| `g GDP real` | 5748 |
+| `g GDP real delay` | 108 |
+| `g L gis` | 3843 |
+| `g lamba i` | 5754 |
+| `g relative UC i` | 962 |
+| `g y nom i` | 168 |
 | `GDP initial` | 5759 |
 | `GDP nom` | 5765 |
 | `GDP nom delay` | 5771 |
@@ -329,94 +519,246 @@ Disagreeing is not proof of an error. Three innocent reasons for a `medium`:
 | `GDP real delay` | 5782 |
 | `GFCF real i delay` | 5793 |
 | `GHG` | 5798 |
-| `GHG Nace tot` | 5814 |
 | `GHG fd hh` | 5804 |
 | `GHG i` | 5809 |
+| `GHG Nace tot` | 5814 |
 | `GIEC` | 5819 |
 | `GIEC ktoe` | 5825 |
 | `GINI yd` | 5837 |
+| `Goods 0` | 4364 |
+| `goods 1` | 4369 |
+| `goods euro constant 1e6` | 4404 |
+| `gov c imp nom i` | 5895 |
+| `gov c nom delay i` | 4261 |
+| `gov c nom i` | 4245 |
+| `gov def` | 5900 |
+| `gov I frac` | 5906 |
+| `gov interest` | 5914 |
+| `gov wages frac` | 5920 |
 | `GPB spend` | 5927 |
+| `gross fin inc cap` | 5952 |
+| `gross fin inc gs` | 517 |
 | `GUB spend` | 5958 |
 | `GW recharge I` | 3688 |
 | `GWB` | 4323 |
-| `GWB T iv` | 5995 |
 | `GWB gis` | 761 |
-| `GWB i[ind] :EXCEPT:` | 867 |
-| `Goods 0` | 4364 |
+| `GWB i[ind] :EXCEPT:` |  |
+| `GWB T iv` | 5995 |
+| `h eff` | 6001 |
 | `Hours 1` | 4349 |
+| `hours i` | 6007 |
+| `hours mean` | 152 |
 | `I desired i` | 6028 |
 | `I gov` | 6038 |
+| `i i` | 472 |
 | `I imp i` | 6043 |
 | `I max i` | 479 |
 | `I nom i` | 6048 |
 | `I nom tot` | 158 |
-| `INITIAL TIME` | 9702 |
 | `Id dom nom i` | 6054 |
 | `Id matrix ii` | 6060 |
 | `Id minus A ii` | 6084 |
 | `Id nom i` | 190 |
-| `Inactive\_tot` | 740 |
+| `in adapation` | 4506 |
+| `in bonds cap` | 6090 |
+| `in bonds gs` | 6096 |
+| `in deposits cap` | 6107 |
+| `in deposits gs` | 4197 |
+| `in equity cap` | 6112 |
+| `in equity gs` | 4207 |
+| `in Equity i` | 6119 |
+| `in I desired i` | 6124 |
+| `in K i` | 6129 |
+| `in LFPR gs` | 4296 |
+| `in Loans i` | 6134 |
+| `in share RES i` | 17 |
+| `in share RES i[nrg,ind] :EXCEPT:` |  |
+| `in share sources` | 6155 |
+| `in skills 1425 gs` | 4434 |
+| `in skills 2544 gs` | 4511 |
+| `in skills 65+ gs` |  |
+| `in wage gis` | 830 |
+| `Inactive\_tot` |  |
+| `inc tax e gis` | 395 |
+| `income tax rates t` | 385 |
+| `inflation delay` | 6487 |
+| `inflation rate inccat` | 4165 |
+| `inflation target` | 6497 |
+| `init distr skill cgs` | 6508 |
+| `init gov c nom i` | 6527 |
+| `init gov debt` | 6503 |
+| `init i` | 6535 |
+| `init inflation` | 6542 |
+| `init lab prod` | 122 |
+| `init pop cg` | 6562 |
+| `init sd per cap` | 6570 |
+| `init time use dt` | 6582 |
+| `initial a delay ii` | 6613 |
+| `initial a ii` | 6618 |
+| `initial adaptation` | 4523 |
 | `Initial coeff BLUE i` | 3642 |
+| `initial CT` | 6680 |
+| `initial damage multiplier i` | 6686 |
+| `initial depreciation K i` | 6691 |
+| `initial GFCF i` | 6696 |
+| `initial GFCF real i` | 6706 |
+| `initial GWB` | 6711 |
+| `initial interest rate` | 6716 |
+| `initial lambda delay i` | 6722 |
+| `initial lambda i` | 6727 |
 | `Initial mixed income` | 6738 |
-| `Inv PNRR gov i` | 185 |
+| `initial post tax profits i` | 6744 |
+| `initial prob T2 i` | 6830 |
+| `initial prob T3 i` | 6837 |
+| `initial share source Ed fd hh nrg` | 6843 |
+| `initial share source Ed Z nrg i` | 6850 |
+| `initial T i` | 6878 |
+| `initial techn frontier a ii` | 6883 |
+| `initial techn frontier lambda i` | 6888 |
+| `INITIAL TIME` | 9702 |
+| `initial uc` | 6893 |
+| `initial UFC T iv` | 6922 |
+| `initial unit int dem i` | 6927 |
+| `initial wealth distribution per skill s` | 6950 |
+| `initial wealth per adult` | 6955 |
+| `initial welath distribution capitalists` | 6960 |
+| `interest` | 6018 |
 | `Inv conversion vector i` | 6965 |
+| `Inv PNRR gov i` | 185 |
+| `invert check` | 6975 |
+| `investment rate i` | 6980 |
+| `K delay i` | 6991 |
 | `K initial i` | 7004 |
 | `K tot` | 7012 |
+| `k1 GW i` | 3534 |
+| `k1 SW i` | 3540 |
+| `k2 GW i` | 3473 |
+| `k2 SW i` | 3479 |
 | `Kton 1` | 4389 |
+| `kton tj 1` | 4354 |
+| `L gis Delay` | 3862 |
+| `L gis initial` | 3867 |
 | `L T gisv` | 7022 |
 | `L T isv` | 7027 |
 | `L T iv` | 7032 |
-| `L gis Delay` | 3862 |
-| `L gis initial` | 3867 |
-| `L i desired` | 113 |
-| `LFPR` | 7104 |
-| `LFPR delay gs` | 4202 |
-| `LFPR g` | 7110 |
-| `LFPR gs` | 855 |
-| `LFPR initial gs` | 7116 |
-| `LFPR s` | 7124 |
+| `lab prod` | 147 |
+| `labour share` | 7049 |
+| `lambda delay i` | 7065 |
+| `lambda i` | 573 |
 | `Ld constr i` | 99 |
 | `Ld gis` | 86 |
 | `Ld gis delay` | 81 |
 | `Ld i s` | 127 |
 | `Ld tot` | 76 |
 | `Leontief ii` | 7090 |
+| `lev delay i` | 462 |
+| `lev i` | 7098 |
+| `lev initial i` | 467 |
+| `LFPR` | 7104 |
+| `LFPR delay gs` | 4202 |
+| `LFPR g` | 7110 |
+| `LFPR gs` | 855 |
+| `LFPR initial gs` | 7116 |
+| `LFPR s` | 7124 |
+| `lifetime K i` | 7130 |
 | `Loans initial i` | 7137 |
 | `Ls shares i` | 133 |
 | `Ls tot` | 94 |
+| `male share delay is` | 7195 |
+| `male share initial is` | 7200 |
+| `male share is` | 7224 |
+| `male share trend is` | 7231 |
+| `markup calibration parm i` | 7257 |
+| `markup delay i` | 7302 |
+| `markup initial i` | 7321 |
+| `maturation014 g` | 7331 |
+| `maturation1524 g` | 7336 |
+| `maturation2544 g` | 7341 |
+| `maturation4564 g` | 7346 |
+| `max delta a ii` | 7351 |
+| `max delta lambda i` | 7356 |
+| `max R` | 3635 |
 | `ME ii` | 7361 |
+| `mean delta a ii` | 7407 |
+| `mean delta lambda i` | 7466 |
+| `mean I` | 3693 |
+| `mean P` | 3699 |
+| `mean PET` | 3705 |
+| `mean R` | 3710 |
+| `min delta a ii` | 7474 |
+| `min delta lambda i` | 7479 |
+| `mixed income per capita d` | 7484 |
+| `mixed income total` | 7489 |
 | `Mixed to labour income ratio` | 7495 |
-| `NIC` | 7549 |
+| `mortality rate cg` | 7504 |
+| `mpc inc d` | 916 |
 | `Naming convention: set Vensim with tools>options>setting>show_underbar and Model>settings>Sketch_use_hard_underbar. Use brief informative names and whenever necessary describe the variable in the comments. use the variable suffix to indicate its subscripts in alphabetical order: a` | 9733 |
+| `net fin inc cap` | 7530 |
+| `net fin inc gs` | 7536 |
+| `net labour income pc gis` | 7542 |
+| `NIC` | 7549 |
+| `no action` | 4543 |
+| `omega employment` | 7572 |
+| `omega lambda` | 7579 |
+| `omega price` | 862 |
+| `other benefits per cap` | 7598 |
+| `other benefits spend` | 7590 |
+| `out Loans i` | 7607 |
+| `output to GDP ratio` | 7613 |
 | `P` | 1541 |
 | `P rand RCP26` | 2442 |
 | `P rand RCP60` | 2448 |
 | `P rand RCP85` | 2466 |
 | `P1` | 3095 |
+| `People 1` | 4374 |
+| `People Euro 0` | 4379 |
 | `PET` | 1594 |
 | `PNNR missions i` | 198 |
 | `PNRR spend` | 180 |
-| `PT rand RCP45` | 1642 |
-| `People 1` | 4374 |
-| `People Euro 0` | 4379 |
 | `Pop 014 g` | 7647 |
 | `Pop 1524 g` | 7653 |
 | `Pop 2544 g` | 7659 |
 | `Pop 4564 g` | 7665 |
-| `Pop 65+ g` | 7671 |
+| `Pop 65+ g` |  |
+| `pop cap` | 1258 |
+| `pop share d` | 7677 |
+| `pop share ordered gini` | 7682 |
+| `population g` | 7687 |
+| `population total` | 1423 |
+| `post tax profits delay i` | 7693 |
+| `post tax profits i` | 7698 |
 | `Precipitation` | 2627 |
+| `price capital delay` | 7710 |
+| `price weights i` | 7724 |
+| `prob T2 i` | 7729 |
+| `prob T3 i` | 7744 |
+| `prob T4 i` | 7759 |
 | `Profits` | 7765 |
+| `profits i` | 823 |
+| `profits post debt delay i` | 456 |
+| `profits residual` | 7770 |
+| `pseudo rGW` | 3504 |
+| `pseudo rSW` | 3546 |
+| `PT rand RCP45` | 1642 |
+| `range I` | 3601 |
+| `ratio from Ed to E C i` | 7785 |
+| `ratio GW i` | 3613 |
+| `ratio I` | 3268 |
+| `ratio R` | 3273 |
+| `ratio SW i` | 3738 |
+| `reproductive life` | 7809 |
 | `RES shares g rates 1021 i` | 7815 |
-| `S Time Policy start` | 7987 |
-| `S Time end` | 7981 |
+| `rGW i` | 3136 |
+| `rGW i[ind] :EXCEPT:` |  |
+| `rSW i` | 3144 |
 | `S carbon tax max` | 7838 |
 | `S corp tax rate` | 7847 |
 | `S depreciation rates` | 7852 |
 | `S equitiesliabilities` | 7857 |
 | `S fintax` | 7862 |
+| `S g exp` | 7870 |
 | `S g RES hh` | 7875 |
 | `S g RES i` | 7880 |
-| `S g exp` | 7870 |
 | `S inctax 2` | 7885 |
 | `S inctax 3` | 7890 |
 | `S inctax 4` | 7895 |
@@ -436,446 +778,38 @@ Disagreeing is not proof of an error. Three innocent reasons for a `medium`:
 | `S skill supply trend` | 7966 |
 | `S ss rate employee` | 7971 |
 | `S ss rate employer` | 7976 |
+| `S Time end` | 7981 |
+| `S Time Policy start` | 7987 |
 | `S trend Gcons` | 7993 |
 | `S ub ratio` | 7998 |
 | `S vat rate` | 8003 |
 | `S working hours` | 8008 |
-| `S1 RES shares g rates 2130 i` | 8102 |
 | `S1 depreciation rates i` | 8016 |
 | `S1 equity to liabilities ratio` | 8040 |
 | `S1 g exp i` | 8047 |
 | `S1 hours i` | 8088 |
 | `S1 pension wage ratio` | 8095 |
+| `S1 RES shares g rates 2130 i` | 8102 |
 | `S1 share imp GFCF i` | 8125 |
-| `S1 share imp Z ii` | 8251 |
 | `S1 share imp gov i` | 8167 |
 | `S1 share imp hh i` | 8209 |
+| `S1 share imp Z ii` | 8251 |
 | `S1 trend entry skill gs` | 8302 |
 | `SAVEPER` | 9707 |
-| `SD spend` | 8450 |
-| `SW runoff R` | 3595 |
-| `Skills 1524 gs` | 1361 |
-| `Skills 2544 gs` | 1390 |
-| `Skills 4564 gs` | 1328 |
-| `Switch Off Technology` | 4180 |
-| `T i` | 609 |
-| `T rand RCP26` | 2526 |
-| `T rand RCP45` | 2532 |
-| `T rand RCP60` | 2550 |
-| `T rand RCP85` | 2568 |
-| `TIME STEP` | 9713 |
-| `TJ to ktoe` | 8877 |
-| `Temperature` | 1660 |
-| `Temperature mean:` | 1470 |
-| `Temperature p10:` | 1475 |
-| `Temperature p90:` | 1480 |
-| `Time Act PNRR` | 174 |
-| `Time shock` | 4187 |
-| `Total exp i nom delay` | 8937 |
-| `U tot` | 874 |
-| `UCC i` | 812 |
-| `UFC i` | 817 |
-| `UFC initial i` | 3872 |
-| `UIC delay i` | 9077 |
-| `UIC delay initial i` | 9082 |
-| `UIC delay2 i` | 9088 |
-| `UIC initial i` | 9102 |
-| `ULC delay i` | 9133 |
-| `ULC delay initial i` | 9138 |
-| `ULC delay2 i` | 9144 |
-| `ULC initial i` | 9149 |
-| `VA` | 9185 |
-| `VA i` | 1485 |
-| `W cap f` | 9210 |
-| `W gs f` | 9220 |
-| `W tot` | 502 |
-| `W tot cap` | 507 |
-| `W tot workers` | 512 |
-| `WRestitution GW Mm3` | 3124 |
-| `WRestitution GW Mm3 i` | 3114 |
-| `WRestitution SW Mm3` | 3149 |
-| `WRestitution SW Mm3 i` | 3154 |
-| `WStress GW perc` | 3208 |
-| `WStress SW perc` | 3214 |
-| `WStress Tot perc` | 3196 |
-| `Wd Extended GW tot Mm3` | 3119 |
-| `Wd Extended SW tot Mm3` | 3109 |
-| `Wd Extended Tot Mm3` | 3202 |
-| `Wdem BLUE GW Mm3 i` | 3791 |
-| `Wdem BLUE GW tot` | 3322 |
-| `Wdem BLUE Mm3 i` | 3385 |
-| `Wdem BLUE Mm3 tot` | 3342 |
-| `Wdem BLUE SW Mm3 i` | 3669 |
-| `Wdem BLUE SW tot` | 3337 |
-| `Wdem GREY GW i` | 3292 |
-| `Wdem GREY GW i[ind] :EXCEPT:` | 3290 |
-| `Wdem GREY GW tot` | 3353 |
-| `Wdem GREY SW i` | 3363 |
-| `Wdem GREY SW tot` | 3368 |
-| `Wdem GREY i` | 3358 |
-| `Wdem GREY tot Mm3` | 3373 |
-| `Year 1` | 4528 |
-| `Z T demand iv` | 9661 |
-| `Z nom initial ii` | 9593 |
-| `Z real tot` | 9656 |
-| `Zd real i` | 9676 |
-| `Zs real i` | 9681 |
-| `a T iiv` | 551 |
-| `a delay ii` | 4567 |
-| `a delay2 ii` | 4429 |
-| `a diffusion ii` | 4572 |
-| `a i delay` | 7 |
-| `a i row` | 32 |
-| `a i0` | 56 |
-| `a param beta distribution i` | 3837 |
-| `a param beta distribution i[ind] :EXCEPT:` | 3835 |
-| `adaptation` | 4548 |
-| `adaptation sensitivity` | 4623 |
-| `adaptation spend` | 4533 |
-| `adult population gs` | 4632 |
-| `adult population s` | 4638 |
-| `alpha AGR` | 3528 |
-| `av daily work hours gs` | 1252 |
-| `av infl cum d delay` | 4160 |
-| `av infl cumulative d` | 879 |
-| `average propensity to consume` | 4650 |
-| `b cap` | 4662 |
-| `b gs` | 4674 |
-| `b param beta distribution i` | 3800 |
-| `b param beta distribution i[ind] :EXCEPT:` | 3797 |
-| `b0 cap` | 342 |
-| `b0 s` | 332 |
-| `base VAT rate` | 1491 |
-| `basic beta dp` | 911 |
-| `bbb` | 4681 |
-| `benefit per child` | 4686 |
-| `beta initial dp` | 4749 |
-| `births g` | 4754 |
-| `c dom nom` | 4794 |
-| `c dom real i` | 4805 |
-| `c imp nom i` | 4810 |
-| `c imp real i` | 4816 |
-| `c inc d` | 936 |
-| `c real i delay` | 4846 |
-| `c total nom` | 4857 |
-| `c total real` | 4862 |
-| `c19 LFPR 2020` | 4217 |
-| `c19 LFPR 2021` | 4228 |
-| `c19 LFPR 2022` | 4235 |
-| `c19 cons 2021` | 4874 |
-| `c19 exp 2020` | 4880 |
-| `c19 exp 2021` | 4886 |
-| `c19 imp 2020` | 4892 |
-| `c19 imp 2021` | 4898 |
-| `c19 inv 2020` | 4904 |
-| `c19 inv 2021` | 4910 |
-| `c19 shock cons` | 4916 |
-| `c19 shock exp` | 4409 |
-| `c19 shock imp` | 4922 |
-| `c19 shock inv` | 4927 |
-| `cap prod i` | 4933 |
-| `cases T i` | 665 |
-| `change coeff BLUE GW agr` | 3572 |
-| `change coeff BLUE SW agr` | 3584 |
-| `check IO1` | 2 |
-| `check L is` | 745 |
-| `check L tot` | 750 |
-| `check PET` | 3618 |
-| `check inactive` | 348 |
-| `check\_share\_sources i` | 5002 |
-| `child benef gs` | 4986 |
-| `climate damage A` | 1462 |
-| `coef CO2 to GHG fd hh` | 5068 |
-| `coef CO2 to GHG i` | 5074 |
-| `coef Ed to C fd hh nrg` | 5081 |
-| `coef Ed to C nrg i` | 5088 |
-| `coef NIC to GIEC` | 5102 |
-| `coeff BLUE i` | 1536 |
-| `coeff Co` | 3378 |
-| `coeff E C to CO2 hh nrg` | 5109 |
-| `coeff E C to CO2 nrg i` | 5119 |
-| `coeff GREEN agr` | 3764 |
-| `coeff P` | 3722 |
-| `coeff T` | 3104 |
-| `coeff adj BLUE GW i` | 1589 |
-| `coeff adj BLUE GW i[ind] :EXCEPT:` | 1587 |
-| `coeff adj BLUE SW i` | 1562 |
-| `coeff adj BLUE SW i[ind] :EXCEPT:` | 1560 |
-| `coeff adj GREEN agr` | 3675 |
-| `coeff conv mm to Mm3` | 3728 |
-| `coeff intens BLUE GW i` | 3786 |
-| `coeff intens BLUE GW i[ind] :EXCEPT:` | 3784 |
-| `coeff intens BLUE SW i` | 3779 |
-| `coeff intens BLUE SW i[ind] :EXCEPT:` | 3777 |
-| `coeff irrigation eff` | 3716 |
-| `coefficient of Dilution GW i` | 3497 |
-| `coefficient of Dilution SW i` | 3129 |
-| `cohort years c` | 5144 |
-| `const Co GW` | 3347 |
-| `const PET` | 3682 |
-| `convergence` | 5179 |
-| `conversion` | 4501 |
-| `corp tax i` | 5185 |
-| `corp tax rate` | 5191 |
-| `corp tax rev` | 5197 |
-| `d Aii T` | 540 |
-| `d cap` | 5208 |
-| `d gs` | 5215 |
-| `d lambda T i` | 562 |
-| `d0 cap` | 5222 |
-| `d0 s` | 5228 |
-| `damage` | 4559 |
-| `damage beta distribution i` | 3820 |
-| `damage beta distribution i[ind] :EXCEPT:` | 3817 |
-| `damage multiplier delay i` | 5238 |
-| `damage multiplier i` | 3829 |
-| `damage multiplier i[ind] :EXCEPT:` | 3827 |
-| `deaths 1524 gs` | 1385 |
-| `deaths 2544 gs` | 1351 |
-| `deaths 4564 gs` | 1356 |
-| `deaths 65+ gs` | 1418 |
-| `deaths014 g` | 5243 |
-| `deaths1524 g` | 5248 |
-| `deaths2544 g` | 5253 |
-| `deaths4564 g` | 5258 |
-| `deaths65+ g` | 5263 |
-| `debt gdp` | 5268 |
-| `debt i` | 5273 |
-| `debt repayment i` | 5279 |
-| `def gdp` | 5284 |
-| `delta a T2 ii` | 711 |
-| `delta a T3 ii` | 684 |
-| `delta a T4 ii` | 597 |
-| `delta damage multiplier i` | 1512 |
-| `delta e inc gs` | 729 |
-| `delta lambda T2 i` | 642 |
-| `delta lambda T3 i` | 654 |
-| `delta lambda T4 i` | 631 |
-| `depreciation rates i` | 5300 |
-| `dg A i` | 12 |
-| `draw T2 i` | 5383 |
-| `draw T3 i` | 5389 |
-| `draw T4 i` | 5395 |
-| `duration adapt` | 5401 |
-| `duration skill transition` | 4496 |
-| `e` | 792 |
-| `e g` | 798 |
-| `e gs` | 778 |
-| `e s` | 5441 |
-| `eco flow R` | 3607 |
-| `elast p exp` | 5556 |
-| `en eff size` | 5562 |
-| `eq cap` | 5568 |
-| `eq gs` | 5575 |
-| `eq0 cap` | 5582 |
-| `eq0 s` | 5588 |
-| `equity delay i` | 5598 |
-| `equity to liabilities ratio` | 5614 |
-| `error I` | 3771 |
-| `error PET` | 3623 |
-| `error R` | 3630 |
-| `euro 1` | 4384 |
-| `euro goods 1` | 4394 |
-| `exog g gov c` | 1440 |
-| `exp damage i` | 3852 |
-| `exp damage i[ind] :EXCEPT:` | 3849 |
-| `exp damage normalized i` | 3809 |
-| `exp damage normalized i[ind] :EXCEPT:` | 3807 |
-| `exp inc e delay gs` | 5626 |
-| `exp inc e gs[gender,skill] :EXCEPT:` | 3403 |
-| `exp inc e initial gs` | 5631 |
-| `exp initial i` | 5636 |
-| `expectetion y real` | 138 |
-| `feasible GW Mm3` | 3159 |
-| `feasible SW Mm3` | 3175 |
-| `feasible Water Supply Mm3` | 3191 |
-| `fertility rate` | 5644 |
-| `fin tax cap` | 5650 |
-| `fin tax gs` | 5656 |
-| `fin tax rev` | 5662 |
-| `final demand nom i` | 5670 |
-| `financial income tax rate` | 5682 |
-| `g A i` | 61 |
-| `g GDP nom` | 5743 |
-| `g GDP real` | 5748 |
-| `g GDP real delay` | 108 |
-| `g L gis` | 3843 |
-| `g exp` | 50 |
-| `g exp inc e gs` | 734 |
-| `g lamba i` | 5754 |
-| `g relative UC i` | 962 |
-| `g y nom i` | 168 |
-| `goods 1` | 4369 |
-| `goods euro constant 1e6` | 4404 |
-| `gov I frac` | 5906 |
-| `gov c imp nom i` | 5895 |
-| `gov c nom delay i` | 4261 |
-| `gov c nom i` | 4245 |
-| `gov def` | 5900 |
-| `gov interest` | 5914 |
-| `gov wages frac` | 5920 |
-| `gross fin inc cap` | 5952 |
-| `gross fin inc gs` | 517 |
-| `h eff` | 6001 |
-| `hours i` | 6007 |
-| `hours mean` | 152 |
-| `i i` | 472 |
-| `in Equity i` | 6119 |
-| `in I desired i` | 6124 |
-| `in K i` | 6129 |
-| `in LFPR gs` | 4296 |
-| `in Loans i` | 6134 |
-| `in adapation` | 4506 |
-| `in bonds cap` | 6090 |
-| `in bonds gs` | 6096 |
-| `in deposits cap` | 6107 |
-| `in deposits gs` | 4197 |
-| `in equity cap` | 6112 |
-| `in equity gs` | 4207 |
-| `in male share is` | 6143 |
-| `in share RES i` | 24 |
-| `in share RES i[nrg,ind] :EXCEPT:` | 17 |
-| `in share sources` | 6155 |
-| `in skill trend is` | 6378 |
-| `in skills 1425 gs` | 4434 |
-| `in skills 2544 gs` | 4511 |
-| `in skills 4564 gs` | 6384 |
-| `in skills 65+ gs` | 6396 |
-| `in wage gis` | 830 |
-| `inc tax e gis` | 395 |
-| `income tax rates t` | 385 |
-| `inflation delay` | 6487 |
-| `inflation rate inccat` | 4165 |
-| `inflation target` | 6497 |
-| `init distr skill cgs` | 6508 |
-| `init gov c nom i` | 6527 |
-| `init gov debt` | 6503 |
-| `init i` | 6535 |
-| `init inflation` | 6542 |
-| `init lab prod` | 122 |
-| `init pop cg` | 6562 |
-| `init sd per cap` | 6570 |
-| `init time use dt` | 6582 |
-| `initial CT` | 6680 |
-| `initial GFCF i` | 6696 |
-| `initial GFCF real i` | 6706 |
-| `initial GWB` | 6711 |
-| `initial T i` | 6878 |
-| `initial UFC T iv` | 6922 |
-| `initial a delay ii` | 6613 |
-| `initial a ii` | 6618 |
-| `initial adaptation` | 4523 |
-| `initial damage multiplier i` | 6686 |
-| `initial depreciation K i` | 6691 |
-| `initial exp yd d` | 931 |
-| `initial interest rate` | 6716 |
-| `initial lambda delay i` | 6722 |
-| `initial lambda i` | 6727 |
-| `initial post tax profits i` | 6744 |
-| `initial prob T2 i` | 6830 |
-| `initial prob T3 i` | 6837 |
-| `initial share source Ed Z nrg i` | 6850 |
-| `initial share source Ed fd hh nrg` | 6843 |
-| `initial techn frontier a ii` | 6883 |
-| `initial techn frontier lambda i` | 6888 |
-| `initial uc` | 6893 |
-| `initial unit int dem i` | 6927 |
-| `initial wealth distribution per skill s` | 6950 |
-| `initial wealth per adult` | 6955 |
-| `initial welath distribution capitalists` | 6960 |
-| `interest` | 6018 |
-| `invert check` | 6975 |
-| `investment rate i` | 6980 |
-| `k1 GW i` | 3534 |
-| `k1 SW i` | 3540 |
-| `k2 GW i` | 3473 |
-| `k2 SW i` | 3479 |
-| `kton tj 1` | 4354 |
-| `lab prod` | 147 |
-| `labour share` | 7049 |
-| `lambda delay i` | 7065 |
-| `lambda i` | 573 |
-| `lev delay i` | 462 |
-| `lev i` | 7098 |
-| `lev initial i` | 467 |
-| `lifetime K i` | 7130 |
-| `male share delay is` | 7195 |
-| `male share initial is` | 7200 |
-| `male share is` | 7224 |
-| `male share trend is` | 7231 |
-| `markup calibration parm i` | 7257 |
-| `markup delay i` | 7302 |
-| `markup initial i` | 7321 |
-| `maturation014 g` | 7331 |
-| `maturation1524 g` | 7336 |
-| `maturation2544 g` | 7341 |
-| `maturation4564 g` | 7346 |
-| `max R` | 3635 |
-| `max delta a ii` | 7351 |
-| `max delta lambda i` | 7356 |
-| `mean I` | 3693 |
-| `mean P` | 3699 |
-| `mean PET` | 3705 |
-| `mean R` | 3710 |
-| `mean delta a ii` | 7407 |
-| `mean delta lambda i` | 7466 |
-| `min delta a ii` | 7474 |
-| `min delta lambda i` | 7479 |
-| `mixed income per capita d` | 7484 |
-| `mixed income total` | 7489 |
-| `mortality rate cg` | 7504 |
-| `mpc inc d` | 916 |
-| `net fin inc cap` | 7530 |
-| `net fin inc gs` | 7536 |
-| `net labour income pc gis` | 7542 |
-| `no action` | 4543 |
-| `omega employment` | 7572 |
-| `omega lambda` | 7579 |
-| `omega price` | 862 |
-| `other benefits per cap` | 7598 |
-| `other benefits spend` | 7590 |
-| `out Loans i` | 7607 |
-| `output to GDP ratio` | 7613 |
-| `pop cap` | 1258 |
-| `pop share d` | 7677 |
-| `pop share ordered gini` | 7682 |
-| `population g` | 7687 |
-| `population total` | 1423 |
-| `post tax profits delay i` | 7693 |
-| `post tax profits i` | 7698 |
-| `price capital delay` | 7710 |
-| `price weights i` | 7724 |
-| `prob T2 i` | 7729 |
-| `prob T3 i` | 7744 |
-| `prob T4 i` | 7759 |
-| `profits i` | 823 |
-| `profits post debt delay i` | 456 |
-| `profits residual` | 7770 |
-| `pseudo rGW` | 3504 |
-| `pseudo rSW` | 3546 |
-| `rGW i` | 3138 |
-| `rGW i[ind] :EXCEPT:` | 3136 |
-| `rSW i` | 3144 |
-| `range I` | 3601 |
-| `ratio GW i` | 3613 |
-| `ratio I` | 3268 |
-| `ratio R` | 3273 |
-| `ratio SW i` | 3738 |
-| `ratio from Ed to E C i` | 7785 |
-| `reproductive life` | 7809 |
 | `savings cap` | 8310 |
 | `savings gs` | 8316 |
 | `scalling lambda` | 8350 |
 | `scalling tech` | 8371 |
 | `sd delta a ii` | 8381 |
 | `sd delta lambda i` | 8442 |
+| `SD spend` | 8450 |
 | `seed` | 8465 |
-| `sens JG` | 4291 |
-| `sens LFPR income` | 8576 |
 | `sens exp init` | 163 |
 | `sens i` | 8495 |
 | `sens i i` | 8503 |
 | `sens inv i` | 8531 |
+| `sens JG` | 4291 |
+| `sens LFPR income` | 8576 |
 | `sens male share unemp s` | 8585 |
 | `sens mkup` | 1446 |
 | `sens mkup delay` | 1451 |
@@ -894,23 +828,42 @@ Disagreeing is not proof of an error. Three innocent reasons for a `medium`:
 | `skill distribution trend is` | 8739 |
 | `skill trend delay is` | 8764 |
 | `skill trend is` | 8770 |
+| `Skills 1524 gs` | 1361 |
+| `Skills 2544 gs` | 1390 |
+| `Skills 4564 gs` | 1328 |
 | `soc sec rev` | 8790 |
 | `ss rate employee` | 8801 |
 | `ss rate employer` | 8807 |
 | `stock of bonds` | 4655 |
 | `stock of bonds delay` | 4669 |
+| `SW runoff R` | 3595 |
+| `Switch Off Technology` | 4180 |
+| `T i` | 609 |
+| `T rand RCP26` | 2526 |
+| `T rand RCP45` | 2532 |
+| `T rand RCP60` | 2550 |
+| `T rand RCP85` | 2568 |
 | `tax floors f` | 414 |
 | `techn frontier a ii` | 8839 |
 | `temp RCP scenario` | 1497 |
+| `Temperature` | 1660 |
+| `Temperature mean:` | 1470 |
+| `Temperature p10:` | 1475 |
+| `Temperature p90:` | 1480 |
 | `test adult` | 1317 |
 | `test work pop` | 1413 |
+| `Time Act PNRR` | 174 |
 | `time adaptation` | 8861 |
+| `Time shock` | 4187 |
+| `TIME STEP` | 9713 |
+| `TJ to ktoe` | 8877 |
 | `tot Div` | 4192 |
 | `tot final demand nom` | 8922 |
 | `tot gov rev` | 951 |
 | `tot gov spend` | 321 |
 | `tot y real` | 8927 |
 | `total beta issue` | 8932 |
+| `Total exp i nom delay` | 8937 |
 | `total exp nom` | 8942 |
 | `total gov c nom` | 8947 |
 | `total imp nom` | 8953 |
@@ -926,43 +879,89 @@ Disagreeing is not proof of an error. Three innocent reasons for a `medium`:
 | `u gs` | 845 |
 | `u initial gs` | 9021 |
 | `u s` | 9029 |
+| `U tot` | 874 |
 | `ub coverage ratio` | 9035 |
 | `uc delay i` | 4554 |
 | `uc i` | 9053 |
 | `uc normal` | 9059 |
+| `UCC i` | 812 |
+| `UFC i` | 817 |
+| `UFC initial i` | 3872 |
+| `UIC delay i` | 9077 |
+| `UIC delay initial i` | 9082 |
+| `UIC delay2 i` | 9088 |
+| `UIC initial i` | 9102 |
+| `ULC delay i` | 9133 |
+| `ULC delay initial i` | 9138 |
+| `ULC delay2 i` | 9144 |
+| `ULC initial i` | 9149 |
 | `unit intermedite demand i` | 9180 |
+| `VA` | 9185 |
+| `VA i` | 1485 |
 | `vat i` | 9190 |
 | `vat rev` | 9204 |
+| `W cap f` | 9210 |
 | `w eff` | 1577 |
+| `W gs f` | 9220 |
+| `W tot` | 502 |
+| `W tot cap` | 507 |
+| `W tot workers` | 512 |
 | `w0` | 9230 |
 | `w0 s` | 9236 |
-| `w0\_cap` | 9242 |
+| `w0\_cap` |  |
 | `wage delay gis` | 773 |
 | `wage gis` | 4337 |
 | `wage gs` | 9248 |
 | `wages gov` | 4328 |
 | `wages initial gis` | 9255 |
+| `Wd Extended GW tot Mm3` | 3119 |
+| `Wd Extended SW tot Mm3` | 3109 |
+| `Wd Extended Tot Mm3` | 3202 |
+| `Wdem BLUE GW Mm3 i` | 3791 |
+| `Wdem BLUE GW tot` | 3322 |
+| `Wdem BLUE Mm3 i` | 3385 |
+| `Wdem BLUE Mm3 tot` | 3342 |
+| `Wdem BLUE SW Mm3 i` | 3669 |
+| `Wdem BLUE SW tot` | 3337 |
+| `Wdem GREY GW i` | 3290 |
+| `Wdem GREY GW i[ind] :EXCEPT:` |  |
+| `Wdem GREY GW tot` | 3353 |
+| `Wdem GREY i` | 3358 |
+| `Wdem GREY SW i` | 3363 |
+| `Wdem GREY SW tot` | 3368 |
+| `Wdem GREY tot Mm3` | 3373 |
 | `weekly hours` | 9300 |
 | `working age pop g` | 9306 |
 | `working age pop total` | 1323 |
 | `working age pop total tot` | 9311 |
 | `working age population gs` | 9316 |
 | `working weeks per year` | 9321 |
+| `WRestitution GW Mm3` | 3124 |
+| `WRestitution GW Mm3 i` | 3114 |
+| `WRestitution SW Mm3` | 3149 |
+| `WRestitution SW Mm3 i` | 3154 |
+| `WStress GW perc` | 3208 |
+| `WStress SW perc` | 3214 |
+| `WStress Tot perc` | 3196 |
 | `y initial i` | 9327 |
 | `y nom delay i` | 9339 |
 | `y real FC i` | 37 |
 | `y real unconstrained i` | 9367 |
-| `yd d nom` | 969 |
-| `yd d test` | 1111 |
 | `yd initial d` | 9383 |
 | `yd order` | 9388 |
 | `yd share` | 9393 |
 | `yd share cumulative gini` | 9398 |
 | `yd share ordered gini` | 9551 |
 | `yd tot` | 9556 |
+| `Year 1` | 4528 |
 | `yearly exp adapt` | 9561 |
+| `Z nom initial ii` | 9593 |
+| `Z real tot` | 9656 |
+| `Z T demand iv` | 9661 |
 | `z T nom iiv` | 9666 |
 | `z T real iiv` | 9671 |
+| `Zd real i` | 9676 |
+| `Zs real i` | 9681 |
 
 </details>
 
@@ -970,15 +969,16 @@ Disagreeing is not proof of an error. Three innocent reasons for a `medium`:
 
 ## Counters
 
-Keep these in step with the tables above when you edit a row.
+Refreshed by `Rscript tool/check-mapping.r --update`. The confidence of a row is
+a human judgement and is never touched.
 
 | | |
 |---|---|
-| R functions | 126 |
-| `checked` | 0 |
-| `added` | 1 |
-| `high` | 54 |
-| `medium` | 10 |
+| R functions | 129 |
+| `checked` | 56 |
+| `added` | 2 |
+| `high` | 3 |
+| `medium` | 7 |
 | `low` | 11 |
 | `none` | 50 |
-| Vensim variables not claimed | 706 / 792 |
+| Vensim variables not claimed | 698 / 792 |
