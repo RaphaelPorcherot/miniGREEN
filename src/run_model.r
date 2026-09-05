@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 # ===========================================================================
-# run_model.r — REWIND orchestrator
+# run_model.r — miniGREEN orchestrator
 #
 # Runs the whole model: loads inputs, builds the four tables, sources the
 # modules, then runs the simulation loop.
@@ -775,7 +775,7 @@ model_outputs <- function() {
 ## is reading the output.
 run_model <- function(params = NULL, periods = NULL, quiet = FALSE) {
 
-  old <- options(rewind.quiet = quiet); on.exit(options(old), add = TRUE)
+  old <- options(minigreen.quiet = quiet); on.exit(options(old), add = TRUE)
 
   apply_params(params)
   reset_state()

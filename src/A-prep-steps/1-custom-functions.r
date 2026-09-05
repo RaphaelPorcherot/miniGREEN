@@ -810,7 +810,7 @@ memory_checkpoint <- function(step_name = "") {
   mem_mb <- round(as.numeric(lobstr::mem_used()) / (1024^2), 2)
   log_info("memory at ", step_name, ": ", mem_mb, " MB")
   # Silent in a calibration loop: run_model() may be called thousands of times.
-  if (!isTRUE(getOption("rewind.quiet", FALSE))) {
+  if (!isTRUE(getOption("minigreen.quiet", FALSE))) {
     message(sprintf("[%s] memory: %.2f MB", step_name, mem_mb))
   }
 }
@@ -916,7 +916,7 @@ eq_done_count <- function() length(ls(.eq$done))
 ##
 ## `body` is a function that calls every equation once, in whatever order the
 ## modules are written in. It is called repeatedly.
-eq_run_passes <- function(body, max_passes = getOption("rewind.max_passes", 50L)) {
+eq_run_passes <- function(body, max_passes = getOption("minigreen.max_passes", 50L)) {
   for (pass in seq_len(max_passes)) {
     clear_eq_log()
     .eq$mark <- eq_done_count()

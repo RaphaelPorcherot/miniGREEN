@@ -1,6 +1,6 @@
 **Two possiblities to access the graphical app:**
 
-* graph shiny app deployed at [https://rewind.shinyapps.io/graph/](https://rewind.shinyapps.io/graph/).
+* graph shiny app deployed at [https://minigreen.shinyapps.io/minigreen/](https://minigreen.shinyapps.io/minigreen/).
 
 * use jupyter notebook `DirectedGraphs.ipynb` in current folder
 

@@ -1,6 +1,9 @@
-# REWIND — Vensim to R
+# miniGREEN — Vensim to R
 
-REWIND is an IO-SFC-SD ecological macroeconomic model calibrated for Italy. This
+miniGREEN is an IO-SFC-SD ecological macroeconomic model calibrated for Italy.
+It was called REWIND until the 2025 version; the 2026 model and this R port are
+miniGREEN. The name survives in the Vensim export filename and in the older
+documentation repository, which are left as they are. This
 repository holds its translation from Vensim to R.
 
 The reference source is `vensim_model_2026.txt` — the simplified version of the
@@ -55,7 +58,7 @@ On Linux this may need `sudo`.
 ### 1.3 Restore the project environment
 
 ```bash
-cd /path/to/rewind
+cd /path/to/minigreen
 R
 ```
 
@@ -1102,7 +1105,7 @@ than a framework.
 ### 11.2 The Shiny dependency viewer
 
 `app/graph/` renders the model as a directed graph, one node per variable,
-coloured by module. Deployed at <https://rewind.shinyapps.io/graph/>.
+coloured by module. Deployed at <https://minigreen.shinyapps.io/minigreen/>.
 
 ```r
 library(shiny); library(rsconnect)

@@ -1,0 +1,10 @@
+name: minigreen
+title: miniGREEN
+username: rporcherot
+account: rporcherot
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 17834341
+bundleId: 12511954
+url: https://rporcherot.shinyapps.io/minigreen/
+version: 1
