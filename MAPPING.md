@@ -1,4 +1,4 @@
-# Vensim ↔ R map
+# Vensim ↔ R mapg?
 
 Which R function translates which Vensim equation, and where to find it.
 
@@ -85,47 +85,47 @@ Disagreeing is not proof of an error. Three innocent reasons for a `medium`:
 
 | R function | Output | Vensim | Line | Conf. |
 |---|---|---|---|---|
-| `interIndustryCoeff` | `R_a_ii` | `a ii` | 4458 | high |
+| `interIndustryCoeff` | `R_a_ii` | `a ii` | 4458 | checked |
 | `leontieffMatrix_ii` | `leontieff_ii` |  |  | none |
-| `nominalFinalDemandForDomesticGoods_i` | `F_finalDemNom_i` | `c dom nom i`, `gov c dom nom i`, `total exp nom i` | 4799 | high |
+| `nominalFinalDemandForDomesticGoods_i` | `F_finalDemNom_i` | `c dom nom i`, `gov c dom nom i`, `total exp nom i` | 4799 | checked |
 | `nominalInterIndustryTradeMatrix_ii` | `Znom_ii` |  |  | none |
-| `nominalIntermediateDemand_interindustryAndImport` | `totalZnom_i` | `z demand nom i`, `Z nom ii`, `Z imp nom i` | 9568 | high |
-| `nominalTotalOuput_i` | `F_totalOutputNom_i` | `y nom i` | 9345 | high |
-| `realFinalDemandForDomesticGoods_i` | `F_finalDemReal_i` | `final demand real i` | 5676 | high |
+| `nominalIntermediateDemand_interindustryAndImport` | `totalZnom_i` | `z demand nom i`, `Z nom ii`, `Z imp nom i` | 9568 | checked |
+| `nominalTotalOuput_i` | `F_totalOutputNom_i` | `y nom i` | 9345 | checked |
+| `realFinalDemandForDomesticGoods_i` | `F_finalDemReal_i` | `final demand real i` | 5676 | checked |
 | `realInterIndustryTradeMatrix_ii` | `Zreal_ii` |  |  | none |
-| `realTotalOuput_i` | `F_totalOutputReal_i` | `y real i` | 9356 | high |
+| `realTotalOuput_i` | `F_totalOutputReal_i` | `y real i` | 9356 | checked |
 
 ## P — Prices
 
 | R function | Output | Vensim | Line | Conf. |
 |---|---|---|---|---|
-| `SHOCK_setMarkup` | `R_markup_i` | `markup i` | 7308 | high |
-| `currentInflation` | `R_inflation` | `inflation`, `inflation i`, `inflation weights i` | 6482 | high |
+| `SHOCK_setMarkup` | `R_markup_i` | `markup i` | 7308 | checked |
+| `currentInflation` | `R_inflation` | `inflation`, `inflation i`, `inflation weights i` | 6482 | checked |
 | `currentInflationByIndustry_i` | `R_inflation_i` |  |  | none |
-| `currentInflationWeights_i` | `SH_nomConsNACE_i` | `inflation weights i`, `c nom i` | 4170 | high |
-| `setPrices` | `R_p_i` | `p i`, `markup i`, `vat rate`, `UFC delay i`, `p init i`, `p i delay` | 3278 | high |
+| `currentInflationWeights_i` | `SH_nomConsNACE_i` | `inflation weights i`, `c nom i` | 4170 | checked |
+| `setPrices` | `R_p_i` | `p i`, `markup i`, `vat rate`, `UFC delay i`, `p init i`, `p i delay` | 3278 | checked |
 | `setPricesCapital` | `` | `price capital`, `p i`, `price capital weights i` | 7704 | medium |
 | `unitFactorCost` | `R_unitFactorCost_i` |  |  | none |
 | `unitFactorCostFossilSubsidiesReduction` | `` | `y nom i` |  | low |
-| `unitInputCost` | `R_unitInputCost_i` | `UIC i`, `z demand nom i`, `depreciation K i`, `y real i` | 9093 | high |
-| `unitLabCost` | `R_unitLabCost_i` | `ULC i`, `GWB i`, `y real delay i` | 496 | high |
+| `unitInputCost` | `R_unitInputCost_i` | `UIC i`, `z demand nom i`, `depreciation K i`, `y real i` | 9093 | checked |
+| `unitLabCost` | `R_unitLabCost_i` | `ULC i`, `GWB i`, `y real delay i` | 496 | checked |
 
 ## C — Consumption
 
 | R function | Output | Vensim | Line | Conf. |
 |---|---|---|---|---|
-| `accumulatedInflationCOICOP_p` | `R_accInfl_p` | `infl cumulative p`, `bridge ip`, `infl cumulative i` | 6476 | high |
-| `accumulatedInflationNACE_i` | `R_accInfl_i` | `infl cumulative i`, `p i` | 6470 | high |
+| `accumulatedInflationCOICOP_p` | `R_accInfl_p` | `infl cumulative p`, `bridge ip`, `infl cumulative i` | 6476 | checked |
+| `accumulatedInflationNACE_i` | `R_accInfl_i` | `infl cumulative i`, `p i` | 6470 | checked |
 | `currentPopIncomeGroups_dsg` | `ST_population_dsg` | `pop d` | 1264 | medium |
 | `disposableIncomePerCapita_dsg` | `F_dispIncPerCap_dsg` | ~~`yd d`~~ → `yd d nom`, `yd d test`, `yd delay d` | 969 | low |
 | `expectationDisposableIncomePerCapita_dsg` | `F_expDispIncPerCap_dsg` | ~~`exp yd d`~~ → `initial exp yd d` | 931 | low |
 | `expectationDisposableIncomePerCapita_dsg_lag` | `F_expDispIncPerCap_dsg` | `yd delay d` | 9373 | medium |
 | `expectationDisposableIncomePerCapita_dsg_lag2` | `F_expDispIncPerCap_dsg` | `yd delay2 d` | 9378 | medium |
-| `nominalIndividualConsExpenditure_dp` | `F_nomIndC_dp` | `c dp`, `c tot d` | 924 | high |
-| `nominalTotalConsumptionDemandCOICOP_p` | `F_Cnom_p` | `c p`, `c dp`, `pop d` | 4827 | high |
+| `nominalIndividualConsExpenditure_dp` | `F_nomIndC_dp` | `c dp`, `c tot d` | 924 | checked |
+| `nominalTotalConsumptionDemandCOICOP_p` | `F_Cnom_p` | `c p`, `c dp`, `pop d` | 4827 | checked |
 | `nominalTotalConsumptionDemandNACE_i` | `F_Cnom_i` | `c nom i`, `c real i`, `p i` | 4821 | low |
-| `realTotalConsumptionDemandCOICOP_p` | `F_Creal_p` | `c real p`, `c p` | 4851 | high |
-| `realTotalConsumptionDemandNACE_i` | `F_Creal_i` | `c real i`, `bridge ip`, `c real p` | 4833 | high |
+| `realTotalConsumptionDemandCOICOP_p` | `F_Creal_p` | `c real p`, `c p` | 4851 | checked |
+| `realTotalConsumptionDemandNACE_i` | `F_Creal_i` | `c real i`, `bridge ip`, `c real p` | 4833 | checked |
 | `sharesNominalConsExpenditurePerCapitaInCOICOP_dp` | `SH_nomIndC_dp` | ~~`beta dp`~~ → `basic beta dp` | 911 | low |
 
 ## I — Investment
@@ -133,21 +133,21 @@ Disagreeing is not proof of an error. Three innocent reasons for a `medium`:
 | R function | Output | Vensim | Line | Conf. |
 |---|---|---|---|---|
 | `POL_shiftRateRealCapitalDepreciation` | `R_KrealDepr_i` |  |  | none |
-| `realCapitalDepreciation` | `F_KrealDepr_i` | `depreciation K i` | 5295 | high |
-| `realCapitalDepreciation_lag` | `F_KrealDepr_i_lag` | `depreciation K delay i` | 5290 | medium |
-| `realCapitalStock` | `ST_Kreal_i` | `K i` | 6996 | high |
-| `realCapitalStock_lag2` | `ST_Kreal_i_lag2` | `K delay i` | 6991 | medium |
-| `realInvestmentDemand` | `F_GFCFreal_i` | `GFCF real i` | 3220 | high |
+| `realCapitalDepreciation` | `F_KrealDepr_i` | `depreciation K i` | 5295 | checked |
+| `realCapitalDepreciation_lag` | `F_KrealDepr_i_lag` | `depreciation K delay i` | 5290 | checked |
+| `realCapitalStock` | `ST_Kreal_i` | `K i` | 6996 | checked |
+| `realCapitalStock_lag2` | `ST_Kreal_i_lag2` | `K delay i` | 6991 | checked |
+| `realInvestmentDemand` | `F_GFCFreal_i` | `GFCF real i` | 3220 | checked |
 
 ## TR — International trade
 
 | R function | Output | Vensim | Line | Conf. |
 |---|---|---|---|---|
-| `POL_importShareInIntermediateTrade` | `SH_impZ_ii` | `share imp Z ii` | 8680 | high |
+| `POL_importShareInIntermediateTrade` | `SH_impZ_ii` | `share imp Z ii` | 8680 | checked |
 | `SHIFT_nominalExport` | `F_Xnom_i` | `g exp i` | 5731 | high |
-| `SHIFT_nominalImportIntermediateDemand` | `impZnom_i` | `Z imp nom i`, `p i`, `Z imp real ii` | 9574 | high |
+| `SHIFT_nominalImportIntermediateDemand` | `impZnom_i` | `Z imp nom i`, `p i`, `Z imp real ii` | 9574 | checked |
 | `realExport` | `F_Xreal_i` | `total exp nom i`, `p i` |  | low |
-| `realImportInterMediateDemand` | `impZreal_ii` | `Z imp real ii`, `share imp Z ii`, `Z real ii` | 9582 | high |
+| `realImportInterMediateDemand` | `impZreal_ii` | `Z imp real ii`, `share imp Z ii`, `Z real ii` | 9582 | checked |
 | `totalRealImportIntermediateDemand` | `totalImpZ` | `Z imp real ii` |  | low |
 
 ## L — Labour
@@ -168,13 +168,13 @@ Disagreeing is not proof of an error. Three innocent reasons for a `medium`:
 | `employmentRate_s` | `R_e_s` |  |  | none |
 | `employmentRate_sg` | `R_e_sg` |  |  | none |
 | `grossWageBill` | `F_GWB_isg` |  |  | none |
-| `inactivePop` | `ST_inactivePop_sg` | `N olf gs` | 7521 | high |
-| `incomeExpectation` | `F_expIncome_sg` | `exp inc e gs` | 3406 | high |
+| `inactivePop` | `ST_inactivePop_sg` | `N olf gs` | 7521 | checked |
+| `incomeExpectation` | `F_expIncome_sg` | `exp inc e gs` | 3406 | checked |
 | `incomeExpectation_lag` | `F_expIncome_sg_lag` |  |  | none |
 | `shift_LabourForceParticipationRate` | `R_LFRP_csg` |  |  | none |
 | `shift_MaleLabourShare` | `SH_male_is` |  |  | none |
 | `shift_SkillLabourShare` | `SH_skill_is` |  |  | none |
-| `unemployedLabour` | `ST_labUnemp_sg` | `L u gs`, `labour supply gs`, `L gs` | 7043 | high |
+| `unemployedLabour` | `ST_labUnemp_sg` | `L u gs`, `labour supply gs`, `L gs` | 7043 | checked |
 | `unemploymentRate_s` | `R_u_s` |  |  | none |
 | `unemploymentRate_sg` | `R_u_sg` |  |  | none |
 | `workingAgePop` | `ST_workAgePop_csg` | `Working age population cgs` | 3390 | medium |
@@ -187,29 +187,29 @@ Disagreeing is not proof of an error. Three innocent reasons for a `medium`:
 |---|---|---|---|---|
 | `POL_govWageCompWTR` | `F_govWageCompWTR_isg` |  |  | none |
 | `POL_incomeTaxRate` | `R_incomeTax` |  |  | none |
-| `POL_otherBenefits` | `F_othBenefPerCap` | `init other benefits per cap` | 6548 | high |
-| `POL_pensionBenefitsShare_in_wageBill` | `SH_pension_toWage` | `pension wage ratio` | 7631 | high |
-| `POL_unempBenefitsShareInWageBill` | `SH_unempBenef_toWage` | `ub wage ratio` | 9042 | high |
+| `POL_otherBenefits` | `F_othBenefPerCap` | `init other benefits per cap` | 6548 | checked |
+| `POL_pensionBenefitsShare_in_wageBill` | `SH_pension_toWage` | `pension wage ratio` | 7631 | checked |
+| `POL_unempBenefitsShareInWageBill` | `SH_unempBenef_toWage` | `ub wage ratio` | 9042 | checked |
 | `POL_valueAddedTaxRate` | `R_VAT` | `ub wage ratio` | 9042 | high |
-| `grossAnnualIncomePerCapita_employed` | `F_GWBperCap_isg` | `gross annual income e gis` | 755 | high |
-| `grossAnnualIncomePerCapita_pension` | `F_GPBperCap_sg` | `gross annual income p gs`, `GPB gs`, `Skills 65+ gs` | 5940 | high |
+| `grossAnnualIncomePerCapita_employed` | `F_GWBperCap_isg` | `gross annual income e gis` | 755 | checked |
+| `grossAnnualIncomePerCapita_pension` | `F_GPBperCap_sg` | `gross annual income p gs`, `GPB gs`, `Skills 65+ gs` | 5940 | checked |
 | `grossAnnualIncomePerCapita_unemployed` | `F_GUBperCap_sg` | `GUB gs`, `L u gs` | 5963 | low |
-| `grossPensionBenefits` | `F_GPB_sg` | `GPB gs`, `GWB gs`, `L gs`, `Skills 65+ gs` | 5932 | high |
+| `grossPensionBenefits` | `F_GPB_sg` | `GPB gs`, `GWB gs`, `L gs`, `Skills 65+ gs` | 5932 | checked |
 | `grossUnempBenefits` | `F_GUB_sg` |  |  | none |
 | `incomeTaxLevyPerCapita_employed` | `F_incTaxEmpPerCap_isg` |  |  | none |
-| `incomeTaxLevyPerCapita_pension` | `F_incTaxPensPerCap_sg` | `inc tax p gs` | 419 | high |
-| `incomeTaxLevyPerCapita_unemployed` | `F_incTaxUnempPerCap_sg` | `inc tax u gs` | 353 | high |
-| `socialSecurityAnnualContPerCapita_eByEmployer` | `F_socSecPerCap_eEmployer_isg` | `soc sec contr employer gis` | 8784 | high |
-| `socialSecurityAnnualContPerCapita_employed` | `F_socSecPerCap_e_isg` | `soc sec contr e gis` | 8778 | high |
+| `incomeTaxLevyPerCapita_pension` | `F_incTaxPensPerCap_sg` | `inc tax p gs` | 419 | checked |
+| `incomeTaxLevyPerCapita_unemployed` | `F_incTaxUnempPerCap_sg` | `inc tax u gs` | 353 | checked |
+| `socialSecurityAnnualContPerCapita_eByEmployer` | `F_socSecPerCap_eEmployer_isg` | `soc sec contr employer gis` | 8784 | checked |
+| `socialSecurityAnnualContPerCapita_employed` | `F_socSecPerCap_e_isg` | `soc sec contr e gis` | 8778 | checked |
 | `socialSecurityAnnualContPerCapita_pension` | `F_socSecPerCap_p_sg` | `gross annual income u gs` |  | low |
 | `socialSecurityAnnualContPerCapita_unemployed` | `F_socSecPerCap_u_sg` | `gross annual income u gs` |  | low |
 | `socialSecurityContRateByEmployee` | `R_socSecEmployee` |  |  | none |
 | `socialSecurityContRateByEmployer` | `R_socSecEmployer` |  |  | none |
 | `socialSecurityContRateTotal` | `R_socSec` |  |  | none |
-| `taxableAnnualIncomePerCapita_employed` | `F_taxIncPerCap_e_isg` | `taxable inc e gis`, `gross annual income e gis` | 8818 | high |
-| `taxableAnnualIncomePerCapita_pension` | `F_taxIncPerCap_p_sg` | `taxable inc p gs`, `gross annual income p gs` | 8824 | high |
-| `taxableAnnualIncomePerCapita_unemployed` | `F_taxIncPerCap_u_sg` | `taxable inc u gs`, `gross annual income u gs` | 8829 | high |
-| `totalIncomeTaxLevy` | `F_incTaxLevy` | `inc tax rev` | 6437 | high |
+| `taxableAnnualIncomePerCapita_employed` | `F_taxIncPerCap_e_isg` | `taxable inc e gis`, `gross annual income e gis` | 8818 | checked |
+| `taxableAnnualIncomePerCapita_pension` | `F_taxIncPerCap_p_sg` | `taxable inc p gs`, `gross annual income p gs` | 8824 | checked |
+| `taxableAnnualIncomePerCapita_unemployed` | `F_taxIncPerCap_u_sg` | `taxable inc u gs`, `gross annual income u gs` | 8829 | checked |
+| `totalIncomeTaxLevy` | `F_incTaxLevy` | `inc tax rev` | 6437 | checked |
 
 ## TECH — Technology
 
@@ -220,19 +220,19 @@ Disagreeing is not proof of an error. Three innocent reasons for a `medium`:
 | `computeAlternativeDesiredLabour` | `ST_desLabAlt_isvg` |  |  | none |
 | `computeAlternativeGrossWageBill` | `F_GWBAlt_iv` |  |  | none |
 | `computeAlternativeLabourProductivity` | `R_labProdAlt_iv` | `lambda T iv` | 586 | medium |
-| `currTechDiffusionLabourProd` | `R_labProdDiffusion_i` | `lambda diffusion i` | 7075 | high |
-| `labourProductivity_lag2` | `R_labProd_i_lag2` | `lambda delay2 i` | 7070 | medium |
-| `techFrontierLabourProd` | `R_techFrontLadProd_i` | `techn frontier lambda i` | 8850 | high |
-| `unitFactorCostAlt` | `R_unitFactorCostAlt_iv` | `UFC T iv` | 9072 | high |
-| `unitInputCostAlt` | `R_unitInputCostAlt_iv` | `UIC T iv` | 9128 | high |
-| `unitLabCostAlt` | `R_unitLabCostAlt_iv` | `ULC T iv` | 9175 | high |
+| `currTechDiffusionLabourProd` | `R_labProdDiffusion_i` | `lambda diffusion i` | 7075 | checked |
+| `labourProductivity_lag2` | `R_labProd_i_lag2` | `lambda delay2 i` | 7070 | checked |
+| `techFrontierLabourProd` | `R_techFrontLadProd_i` | `techn frontier lambda i` | 8850 | checked |
+| `unitFactorCostAlt` | `R_unitFactorCostAlt_iv` | `UFC T iv` | 9072 | checked |
+| `unitInputCostAlt` | `R_unitInputCostAlt_iv` | `UIC T iv` | 9128 | checked |
+| `unitLabCostAlt` | `R_unitLabCostAlt_iv` | `ULC T iv` | 9175 | checked |
 
 ## EN — Energy
 
 | R function | Output | Vensim | Line | Conf. |
 |---|---|---|---|---|
 | `POL_PhaseOutReductionEnShare` | `R_gEnShare_fromPolicy_in` |  |  | none |
-| `POL_Shift_EnSourceShare_in_InterProdEnDemand` | `SH_enSrc_enDemZ_in` | `Share source Ed Z nrg i` | 8696 | high |
+| `POL_Shift_EnSourceShare_in_InterProdEnDemand` | `SH_enSrc_enDemZ_in` | `Share source Ed Z nrg i` | 8696 | checked |
 | `POL_fossilSubsidiesReduction` | `fossilSubRed_i` |  |  | none |
 | `shift_EnSourceShare_FromRenewGrowth_i` | `R_gEnShare_fromRenew_in` |  |  | none |
 
@@ -240,11 +240,11 @@ Disagreeing is not proof of an error. Three innocent reasons for a `medium`:
 
 | R function | Output | Vensim | Line | Conf. |
 |---|---|---|---|---|
-| `CarbonCostETS` | `F_carbonCostETS_i` | `CO2 cost ETS i` | 5014 | high |
-| `CarbonCostTotal` | `F_carbonCostTotal_i` | `carbon cost tot i` | 4941 | high |
-| `CarbonTaxCoverage` | `F_taxableCarbon_i` | `CO2 for CT i`, `CO2 i`, `selection ETS i` | 5029 | high |
-| `CarbonTaxLevy` | `F_carbonTaxLevy_i` | `carbon tax i` | 4958 | high |
-| `POL_carbonTaxRate` | `R_carbonTax` | `carbon tax rate` | 4968 | high |
+| `CarbonCostETS` | `F_carbonCostETS_i` | `CO2 cost ETS i` | 5014 | checked |
+| `CarbonCostTotal` | `F_carbonCostTotal_i` | `carbon cost tot i` | 4941 | checked |
+| `CarbonTaxCoverage` | `F_taxableCarbon_i` | `CO2 for CT i`, `CO2 i`, `selection ETS i` | 5029 | checked |
+| `CarbonTaxLevy` | `F_carbonTaxLevy_i` | `carbon tax i` | 4958 | checked |
+| `POL_carbonTaxRate` | `R_carbonTax` | `carbon tax rate` | 4968 | checked |
 | `POL_priceETS` | `priceETS_i` | `p ETS` | 7618 | medium |
 
 ---

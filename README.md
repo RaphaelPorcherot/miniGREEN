@@ -675,33 +675,94 @@ and is the authority for what gets registered as `Kind == "state"`.
 Entries with `—` are not translated yet. The financial block is new in 2026 and
 the `FI` module has not been started.
 
-### 6.5 Flows are computed separately from states
+### 6.5 A state, its flow, and the one question to ask
 
-**[planned]** A module computes a **net flow** and stops there. It does not
-update the state.
+Every state in the model advances the same way, and only this way:
+
+```
+state(t) = state(t - dt) + net_flow * dt
+```
+
+That arithmetic lives in `advance_state(prev, flow)`, not in the equations, so
+that `dt` cannot be written in one place and forgotten in another. An equation
+computes the **flow**; a second one advances the **state**:
 
 ```r
-# in the module: a pure flow, no side effect on the state
-netCapitalFormation <- function() {
+flowSkillLabourShare <- function() {          # the flow, on its own
   eq({
-    F_KrealNet_i <- F_GFCFreal_i - F_KrealDepr_i
-    F_KrealNet_i
+    F_skillShare_is <- convergence * gp("R_trendSkill_is")
+    F_skillShare_is
+  })
+}
+
+shift_SkillLabourShare <- function() {        # the state
+  eq({
+    SH_skill_is <- advance_state(SH_skill_is_lvl, F_skillShare_is)
+    SH_skill_is
   })
 }
 ```
 
-The update happens once, at the end of the period, for all states at once:
+Two functions rather than one, because a flow that exists only as a local
+variable inside its state's equation cannot be inspected, plotted, or read by
+anything else. Split, it lands in `d` with `Kind == "flow"` like any other
+variable.
 
-```r
-state <- state + net_flow * dt
-```
+#### The question to ask
 
-This is what makes RK4 possible later (§7). Today `I.r` does both in one
-expression:
+When you translate a Vensim `INTEG`, the question is **not** "is the update
+additive or multiplicative". It is:
 
-```r
-ST_Kreal_i <- ST_Kreal_i_lvl + (F_GFCFreal_i - F_KrealDepr_i)   # to be split
-```
+> **What is the net flow, and does that flow read the state it feeds?**
+
+A flow that reads its own state is entirely legitimate — it is what makes a
+smooth a smooth. What is not legitimate is *inventing* that self-reference when
+the Vensim flow does not have it.
+
+| State | Vensim flow | Reads its own state? |
+|---|---|---|
+| `skill trend is` | `convergence * trend` | no |
+| `male share is` | `sens*(u_m - u_f) + convergence * trend` | no — the state is only in the guard |
+| `Skills XXXX gs` | `Skills * smooth(...) + in - out - deaths` | **yes**, the first term |
+| a `SMOOTH` | `(input - state) / delay` | **yes** — that *is* the smooth |
+| `Share source Ed Z nrg i` | `-g(t) * Share / (1 - Share[renew])` | **yes** |
+
+Writing `state * factor` is shorthand for `state + state * (factor - 1)`, so it
+is correct **only when the Vensim flow really does have a term proportional to
+the stock**. For the population it does, and `PopSkillShift = Pop_lvl * (1 +
+smooth)` is exactly Vensim's `Skills + Skills * smooth(...)`. For the two share
+variables it does not, and writing it that way scaled every flow by the share it
+fed — which broke the invariant that the shares sum to 1, since the trends are
+built to sum to zero precisely so that an *additive* flow conserves it. That
+cost up to 7% drift over the horizon. See `inconsistencies_new.md`.
+
+#### The rule, for a new state
+
+1. Find the Vensim `INTEG` and read its flow argument. That argument is your
+   `F_` variable, verbatim — not scaled, not smoothed, not turned into a factor.
+2. Give the flow its own equation, returning `F_<something>`.
+3. Advance the state with `advance_state(prev, flow)`. Never write the
+   arithmetic out.
+4. Register both in `model_states` in `2-structure.r`: the state, its flow, and
+   an `integ_rationale` if the economic reading and the numerical one diverge.
+5. If the state has an invariant — shares summing to one, a population
+   identity — write the check and make sure it can actually fire. The one
+   guarding `SH_skill_is` read `!all(rowSums(x) - 1) < tolerance`, which
+   collapses the vector to a single logical before comparing and returns `FALSE`
+   for a row summing to three. It had never fired.
+
+`Kind` follows from the registry, not from the name: a variable is a `flow`
+because it feeds a state. Plenty of `F_` variables are flows in the economic
+sense — births, deaths, investment — without being the net flow of any state;
+they are the terms a net flow is built from.
+
+#### Where the flow does not exist
+
+`R_smoothSkillShift_s` has no flow in the first period. A `SMOOTH` initialises
+to its input, so there is no previous state to flow from, and emitting a zero
+would claim the state did not move when in fact it appeared. The registry pairs
+it with `F_smoothSkillShift_s`, which is written to `d` from the second period
+on. That is a property of initialisation, not a gap.
 
 ---
 
@@ -720,17 +781,39 @@ transition mechanical.
 
 **You do not need `deSolve`.** Its requirement that state be a flat numeric
 vector is an interface constraint of that package, not a mathematical necessity.
-Flattening and rebuilding named 3D and 4D arrays on every step would be
-painful for no benefit. The stepper is written directly against the named
-arrays:
+Flattening and rebuilding named 3D and 4D arrays on every step would be painful
+for no benefit.
 
-```r
-step_euler(t, dt)   # now
-step_rk4(t, dt)     # later, same interface
-```
+`advance_state(prev, flow)` is where the Euler step lives, and every state goes
+through it (§6.5). That is the groundwork, not the whole job — and it is worth
+being precise about what still stands between here and RK4, rather than
+implying a one-line swap.
 
-Because the stepper iterates over `Kind == "state"`, adding RK4 touches one
-function and no equations at all.
+**What RK4 needs that we do not have yet.** Euler evaluates the flow once, at
+the state it already has. RK4 evaluates it **four times per step, at states that
+do not exist yet** — `y + k1·dt/2`, and so on. So it needs the flow as a
+*function* `f(t, y)` that can be called on an arbitrary state.
+
+Today a flow is a **value**, computed by an equation that reads the global
+environment. `flowSkillLabourShare()` cannot be asked "what would you be at this
+other state?" — it does not take the state as an argument.
+
+Bridging that means one of:
+
+* giving each flow equation an explicit state argument, so it can be evaluated
+  away from the current one; or
+* running the whole equation pass against a substituted state, which the pass
+  loop could do — set the states, run the pass, read the flows — at the cost of
+  four passes per step.
+
+Neither is hard, and §6.5 is what makes either possible: the flows are named,
+registered, and separated from the updates. But it is a real piece of work, not
+a substitution.
+
+**And a large part of the model is not integrable anyway.** Annual income tax
+brackets, cohort maturation on a one-year step, `IF THEN ELSE(Time = 10, ...)`
+Covid shocks, `DELAY FIXED`. RK4 would apply to the states; the rest stays
+discrete annual whatever happens.
 
 **One honest limit.** A large part of this model is not integrable in continuous
 time by construction: annual income tax brackets, cohort maturation on a

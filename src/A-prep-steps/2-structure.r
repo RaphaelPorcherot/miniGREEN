@@ -250,6 +250,13 @@ model_states <- data.frame(
     "SH_enSrc_enDemZ_in",
     NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA
   ),
+  # The R flow that feeds each state, where the state is translated and active.
+  # NA means the state's equation is still commented out of the main loop.
+  flow = c(
+    "F_population_csg", NA, NA, "F_maleShare_is", "F_skillShare_is",
+    "F_smoothSkillShift_s", NA, NA,
+    NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA
+  ),
   module = c(
     "DEM", "L", "L", "L", "L", "DEM", "I", "EN",
     "I", "GOV", "TECH", "TECH", "CADA",
@@ -268,11 +275,20 @@ model_states <- data.frame(
   )
 )
 
-## Kind of a variable, from the states registry (README §6.2).
-## Everything not registered as a state is an auxiliary for now; the flow/state
-## split in the equations comes with the stepper.
+## Kind of a variable, from the states registry (README section 6.2).
+##
+##   state  it carries its own past and is advanced by advance_state()
+##   flow   it is the net flow feeding one of those states
+##   aux    everything else, recomputed from scratch each period
+##
+## A variable is a flow because it feeds a state, not because its name starts
+## with F_. Plenty of F_ variables are flows in the economic sense — births,
+## deaths, investment — without being the net flow of a state in this registry;
+## they are terms that a net flow is built from.
 variable_kind <- function(name) {
-  if (name %in% stats::na.omit(model_states$r)) "state" else "aux"
+  if (name %in% stats::na.omit(model_states$r))    return("state")
+  if (name %in% stats::na.omit(model_states$flow)) return("flow")
+  "aux"
 }
 
 # END Dimensions

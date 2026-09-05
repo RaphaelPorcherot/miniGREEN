@@ -520,7 +520,6 @@ eq_run_passes(max_passes = max_passes, body = function() {
 
    # # 2 year lag
     labourProductivity_lag2()
-    #ST_KReal_i_lag2 <- realCapitalStock_lag2()
     #F_expDispIncPerCap_dsg_lag2 <- expectationDisposableIncomePerCapita_dsg_lag2()
     realCapitalDepreciation_lag() # because K is level ? 
     
@@ -598,7 +597,9 @@ eq_run_passes(max_passes = max_passes, body = function() {
     
     diffRateUnemploymentBySkill()
     diffRateUnemploymentByGender()
+    flowSkillLabourShare()
     shift_SkillLabourShare()
+    flowMaleLabourShare()
     shift_MaleLabourShare()
   #  #F_expIncome_sg <- incomeExpectation()
   #  #F_labJG_csg <- flux_JobGuarantee()
@@ -703,6 +704,7 @@ eq_run_passes(max_passes = max_passes, body = function() {
     smoothSkillShift()
     skillShiftIncomingPop()
     skillShiftAllPop()
+    flowPopulation()
     endCurrentPeriodPop()
 
 # END module 

@@ -103,7 +103,7 @@ smoothSkillShift <- function() {
     } else {
       prev <- gd("R_smoothSkillShift_s", t - dt)
       F_smoothSkillShift_s <- (input - prev) / gp("timeSkillTransition")
-      R_smoothSkillShift_s <- prev + F_smoothSkillShift_s * dt
+      R_smoothSkillShift_s <- advance_state(prev, F_smoothSkillShift_s)
     }
     R_smoothSkillShift_s
   })
@@ -186,16 +186,22 @@ skillShiftAllPop <- function() {
   })
 }
 
+# Vensim: Skills XXXX gs = INTEG(Skills * smooth(...) + in - out - deaths)
+#
+# The `Skills * smooth(...)` term reads the state, and skillShiftAllPop() applies
+# it as PopSkillShift = Pop_lvl * (1 + smooth) — the same thing written as a
+# level rather than a flow. What is left is the plain part of the flow.
+flowPopulation <- function() {
+  eq({
+    F_population_csg <- (F_birth_csg - F_death_csg) +
+                        (F_maturationIn_csg - F_maturationOut_csg)
+    F_population_csg
+  })
+}
+
 endCurrentPeriodPop <- function() {
   eq({
-    # Vensim: Skills XXXX gs = INTEG(Skills * smooth(...) + in - out - deaths)
-    #
-    # The `Skills * smooth(...)` term reads the state, and skillShiftAllPop()
-    # applies it as PopSkillShift = Pop_lvl * (1 + smooth), which is the same
-    # thing: Pop_lvl + Pop_lvl * smooth. The remaining flows are plain.
-    F_population_csg  <- (F_birth_csg - F_death_csg) +
-                         (F_maturationIn_csg - F_maturationOut_csg)
-    ST_population_csg <- PopSkillShift + F_population_csg * dt
+    ST_population_csg <- advance_state(PopSkillShift, F_population_csg)
     ST_population_csg
   })
 }

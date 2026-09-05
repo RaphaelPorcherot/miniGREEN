@@ -11,6 +11,33 @@
 # Only the ones with no direct R counterpart are written out here.
 
 # ------------------------------------------------------------------------------
+# ADVANCING A STATE
+# ------------------------------------------------------------------------------
+#
+# Every state in the model advances the same way:
+#
+#     state(t) = state(t - dt) + net_flow * dt
+#
+# and that arithmetic lives here rather than being spelled out in each equation,
+# so that `dt` cannot be forgotten in one place and written in another.
+#
+# The net flow may read the state it feeds — a SMOOTH's flow is
+# (input - state)/delay, the population's includes Skills * smooth(...) — and
+# that is fine. What is not fine is writing `state * factor` when the Vensim
+# flow has no term proportional to the stock. See README.md section 6.5.
+
+advance_state <- function(prev, flow, dt = get("dt", envir = .GlobalEnv)) {
+  if (!identical(dim(prev), dim(flow))) {
+    stop("advance_state(): state and flow have different shapes - ",
+         "state is ", paste(dim(prev) %||% length(prev), collapse = "x"),
+         ", flow is ", paste(dim(flow) %||% length(flow), collapse = "x"), ".")
+  }
+  prev + flow * dt
+}
+
+`%||%` <- function(a, b) if (is.null(a)) b else a
+
+# ------------------------------------------------------------------------------
 # SMOOTH()
 # ------------------------------------------------------------------------------
 #

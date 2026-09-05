@@ -221,6 +221,93 @@ now rather than later.
 
 ---
 
+## `lag2` on a state — a lag of something that is already its own lag
+
+**Status:** the period bug is fixed in both functions. Whether
+`realCapitalStock_lag2()` should exist at all is yours to decide.
+**Where:** `src/B-modules/I.r`, `realCapitalStock_lag2()`;
+`src/B-modules/TECH.r`, `labourProductivity_lag2()`.
+**Found:** you raised it — the suspicion that the original modellers took a lag
+*of a state variable*, getting a two-period lag where they wanted one.
+
+### The distinction that settles it
+
+A **state** carries its own past: `gd(X, t - dt)` *is* its lag, and a separate
+`X delay` variable is redundant. An **auxiliary** does not: it is recomputed
+from scratch each period, so a lag of it has to be stored explicitly.
+
+| | state? | `delay2` used in Vensim? |
+|---|---|---|
+| `K i` | **yes**, `INTEG` | **no** |
+| `lambda i` | no, an auxiliary | **yes** |
+
+`src/inconsistencies.qmd` already records the same pattern for wages — *"wage
+delay gis is inconsistent: wage_gis is already a level, hence a lagged
+variable"* — and removed `wage delay gis` on those grounds. Line 546 of that
+file flags it as *"likely the case also for the computation of lambda
+diffusion"*. It is not: lambda is the case where the delay is legitimate.
+
+### Capital: the delay chain is dead
+
+In Vensim 2025:
+
+```
+K delay i[ind]  = DELAY FIXED( K i[ind],       Year 1, K initial i[ind] )
+K delay2 i[ind] = DELAY FIXED( K delay i[ind], Year 1, initial K delay i[ind] )
+```
+
+`K delay2 i` appears in its own definition and in the sketch metadata, and **in
+no equation**. In Vensim 2026 it does not exist. In the R, `ST_Kreal_i_lag2` is
+never read and the call is commented out of the main loop. Dead on all three
+sides.
+
+What lambda diffusion actually reads, in both models, is `K i` and `K delay i`:
+
+```
+techn frontier lambda i[ind] * (K i[ind] - (1/Year 1 - depreciation rates i[ind]) * K delay i[ind])
++ lambda delay i[ind] * (1/Year 1 - depreciation rates i[ind]) * K delay i[ind] * Year 1
+```
+
+Since `K i` is a state, `K delay i` is its beginning-of-period value — which in
+the R is `ST_Kreal_i_lvl`. So the correspondence is
+`K i` → `ST_Kreal_i`, `K delay i` → `ST_Kreal_i_lvl`, and nothing maps to
+`K delay2 i`. That is what `todo.md` records under *"Lvl and lag"*: the R took
+`_lvl` and `_lag2`, shifting the whole thing one year into the past.
+
+**Recommendation: delete `realCapitalStock_lag2()`.** Not applied — the call is
+commented out, which is the frontier of the current translation.
+
+### Lambda: the delay chain is real, the code was not
+
+```
+lambda delay2 i[ind] = DELAY FIXED(lambda delay i[ind], Year 1, initial lambda delay i[ind])
+techn frontier lambda i[ind] = lambda delay i[ind] + (lambda delay i[ind] - lambda delay2 i[ind])
+```
+
+A linear extrapolation from the last two values, which genuinely needs both.
+`labourProductivity_lag2()` is legitimate. Its period arguments were not:
+
+```r
+} else if (t == gp("startYear") + 1) {
+  R_labProd_i_lag2 <- gd("R_labProd_i", 1)      # period 1 — but periods are years
+} else {
+  R_labProd_i_lag2 <- gd("R_labProd_i", t - 2)  # this one was right
+}
+```
+
+Periods in `d` are years, 2010 to 2070. `gd(x, 1)` asks for a period that does
+not exist and would have raised an error the first time the loop reached 2011 —
+the fourth bug of the kind that only shows once the time loop runs, after
+`gd()` ignoring its argument, `smooth_vensim()` past the first period, and
+`max()` collapsing the input-output matrix.
+
+`realCapitalStock_lag2()` had the same fault and worse: its last branch read
+`gd("ST_Kreal_i", 2)`, a constant, never `t - 2`.
+
+Both now read `t - dt` and `t - 2 * dt`.
+
+---
+
 ## `SH_skill_is` and `SH_male_is` — a flow multiplied by its own stock
 
 **Status:** open. It changes results materially, and it is a modelling question

@@ -376,6 +376,18 @@ diffRateUnemploymentByGender <- function() {
 
 # LEVEL in Vensim
 # initial value is first value, this function allows to compute value for t+1
+# Vensim: in skill trend is[ind,skill] = convergence * skill distribution trend is
+#
+# The flow does not read the state. It used to be folded into the update as
+# `lvl * (1 + flow)`, which adds `lvl * flow` instead of `flow` and breaks the
+# sum to 1 across skills. See inconsistencies_new.md.
+flowSkillLabourShare <- function() {
+  eq({
+    F_skillShare_is <- convergence * gp("R_trendSkill_is")
+    F_skillShare_is
+  })
+}
+
 shift_SkillLabourShare <- function() {
   eq({# SH_skill_is : skill distribution initial is / skill trend delay is / in skill trend is
 
@@ -390,40 +402,39 @@ shift_SkillLabourShare <- function() {
     }
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    # Vensim: skill trend is = INTEG(in skill trend is, initial)
-    #         in skill trend is = convergence * skill distribution trend is
-    #
-    # The flow does not read the state. It used to be applied as
-    # `lvl * (1 + flow)`, which adds `lvl * flow` instead of `flow` and breaks
-    # the sum to 1 above — the trends sum to zero by industry precisely so that
-    # an additive flow conserves it. See inconsistencies_new.md.
-    F_skillShare_is <- convergence * gp("R_trendSkill_is")
-    SH_skill_is     <- SH_skill_is_lvl + F_skillShare_is * dt
+    SH_skill_is <- advance_state(SH_skill_is_lvl, F_skillShare_is)
     SH_skill_is
   })
 }
 
 # LEVEL in Vensim
 # initial value is first value, this function allows to compute value for t+1
-shift_MaleLabourShare <- function() {
-  eq({# SH_male_is : male share is
-    # When male unemployment is higher than female unemployment, the male share in that category decreases accordingly.
+# Vensim: in male share is = IF THEN ELSE(flow + male share is > 1, 0, flow)
+#   with flow = sens male share unemp s * (u male - u female)
+#              + convergence * male share trend is
+#
+# The flow does not read the state; the state appears only in the guard, which
+# stops a share going above 1. See inconsistencies_new.md.
+flowMaleLabourShare <- function() {
+  eq({
+    # When male unemployment is higher than female unemployment, the male share
+    # in that category decreases: R_sensMaleU_s is positive, hence the minus.
     eff_unempMale_s <- - gp("R_sensMaleU_s") * R_diffGender_u_s
     eff_unempMale_is <- template_industry_is
     eff_unempMale_is[,] <- rep(eff_unempMale_s, each = nrow(eff_unempMale_is))
     eff_trendMale_is <- convergence * gp("R_trendMale_is")
-    # Addition directe (évite sweep)
-    shift_is <- template_industry_is
-    shift_is[] <- eff_trendMale_is + eff_unempMale_is 
-    # Vensim: in male share is = IF THEN ELSE(flow + male share is > 1, 0, flow)
-    #
-    # The flow does not read the state; the state only appears in the guard,
-    # which stops a share going above 1. The flow used to be applied as
-    # `lvl * (1 + flow)` — see inconsistencies_new.md.
-    F_maleShare_is <- shift_is
-    F_maleShare_is[(SH_male_is_lvl + shift_is * dt) > 1] <- 0
 
-    SH_male_is <- SH_male_is_lvl + F_maleShare_is * dt
+    F_maleShare_is <- template_industry_is
+    F_maleShare_is[] <- eff_trendMale_is + eff_unempMale_is
+    # the guard: no flow where it would push the share above 1
+    F_maleShare_is[(SH_male_is_lvl + F_maleShare_is * dt) > 1] <- 0
+    F_maleShare_is
+  })
+}
+
+shift_MaleLabourShare <- function() {
+  eq({# SH_male_is : male share is
+    SH_male_is <- advance_state(SH_male_is_lvl, F_maleShare_is)
     SH_male_is
   })
 }

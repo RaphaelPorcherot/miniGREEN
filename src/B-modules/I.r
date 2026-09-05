@@ -63,24 +63,11 @@ realCapitalDepreciation_lag <- function(){
   })
 }
 
-realCapitalStock_lag2 <- function(){
-  eq({#K delay i
-    if(t==gp("startYear")){
-      ST_Kreal_i_lag2 <- ST_Kreal_i_lvl
-    }else if(t==gp("startYear")+1){
-      ST_Kreal_i_lag2 <- gd("ST_Kreal_i", 1)
-    }else{
-      ST_Kreal_i_lag2 <- gd("ST_Kreal_i", 2)
-    }
-    ST_Kreal_i_lag2
-  })
-}
-
-
-#K delay2 i 
-# if first period is t = 1 in fact this is lag3, since ST_KReal is actually a level variable. We may be okay with just ST_Kreal_lag for whatever is required (it is different with lambda, since lambda is not a level variable)
-# as a matter of fact, it is never used
-# initial K delay i
-
+# K delay2 i is not translated. In Vensim 2025 it appears in its own definition
+# and in the sketch metadata, in no equation; in Vensim 2026 it does not exist.
+# `K i` is a state, so `K delay i` is already its own previous value —
+# ST_Kreal_i_lvl here — and a second lag of it has no reader. Lambda is the
+# opposite case: an auxiliary, with no past of its own, so lambda delay2 i is
+# genuine and is used. See inconsistencies_new.md.
 
 # END Fonctions --------------------------------------------------------------------------------------------------

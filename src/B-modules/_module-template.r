@@ -40,6 +40,58 @@
 # objet de l'opération _maleLabourShare (si not obvious)
 
 # ==============================================================================
+# WRITING A STATE AND ITS FLOW
+# ==============================================================================
+#
+# Every state advances the same way, and only this way:
+#
+#     state(t) = state(t - dt) + net_flow * dt
+#
+# which is what advance_state(prev, flow) does. Do not write the arithmetic out:
+# dt must not be written in one place and forgotten in another.
+#
+# THE QUESTION TO ASK when translating a Vensim INTEG is not "additive or
+# multiplicative". It is:
+#
+#     What is the net flow, and does that flow read the state it feeds?
+#
+# A flow that reads its own state is fine — it is what makes a smooth a smooth,
+# and the population's flow has such a term. What is NOT fine is inventing that
+# self-reference when the Vensim flow does not have it. Writing
+#
+#     state <- state_lvl * factor          # = state_lvl + state_lvl * (factor-1)
+#
+# scales the flow by the state it feeds. Correct only if the Vensim flow really
+# does contain a term proportional to the stock. It did not for SH_skill_is and
+# SH_male_is, and it broke the shares summing to one. See inconsistencies_new.md.
+#
+# SO, FOR A NEW STATE:
+#
+#   1. read the flow argument of the Vensim INTEG. That is your F_ variable,
+#      verbatim — not scaled, not smoothed, not turned into a factor
+#   2. give the flow its own equation, returning F_<something>
+#   3. advance with advance_state(prev, flow)
+#   4. register state, flow and rationale in model_states, in 2-structure.r
+#   5. if the state has an invariant, write the check AND make sure it can fire
+#
+#     flowSkillLabourShare <- function() {
+#       eq({
+#         F_skillShare_is <- convergence * gp("R_trendSkill_is")
+#         F_skillShare_is
+#       })
+#     }
+#
+#     shift_SkillLabourShare <- function() {
+#       eq({
+#         SH_skill_is <- advance_state(SH_skill_is_lvl, F_skillShare_is)
+#         SH_skill_is
+#       })
+#     }
+#
+# Two functions, not one: a flow that lives only as a local inside its state's
+# equation cannot be inspected, plotted, or read by anything else.
+#
+# ==============================================================================
 # WHAT NOT TO WRITE INSIDE AN eq() BLOCK
 # ==============================================================================
 #

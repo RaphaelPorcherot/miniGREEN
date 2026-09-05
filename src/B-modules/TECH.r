@@ -201,13 +201,20 @@ currTechDiffusionLabourProd <- function() {
 
 labourProductivity_lag2 <- function() {
   eq({
-    # lambda delay2 i
+    # Vensim: lambda delay2 i = DELAY FIXED(lambda delay i, Year 1, initial)
+    #
+    # A genuine two-period lag, and a legitimate one: lambda is an auxiliary,
+    # not a state, so it has no past of its own to read. `techn frontier lambda
+    # i` extrapolates from it: lambda delay i + (lambda delay i - lambda delay2 i).
+    #
+    # The startYear + 1 branch read gd("R_labProd_i", 1) — period 1, but periods
+    # are years. It would have errored the first time the loop reached 2011.
     if (t == gp("startYear")) {
       R_labProd_i_lag2 <- R_labProd_i_lag
-    } else if (t == gp("startYear") + 1) {
-      R_labProd_i_lag2 <- gd("R_labProd_i", 1) # t-1
+    } else if (t == gp("startYear") + dt) {
+      R_labProd_i_lag2 <- gd("R_labProd_i", t - dt)   # t-2 does not exist yet
     } else {
-      R_labProd_i_lag2 <- gd("R_labProd_i", t - 2)
+      R_labProd_i_lag2 <- gd("R_labProd_i", t - 2 * dt)
     }
     R_labProd_i_lag2
   })
