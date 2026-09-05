@@ -105,6 +105,88 @@ set_focus_positions <- function(nodes_df, edges_df, focus_id, up, down) {
 }
 
 
+# Les deux onglets proposent les memes reglages de layout. Ils doivent porter
+# des identifiants distincts : Shiny ne lie que la premiere occurrence d'un id,
+# donc la seconde copie de ces controles etait inerte.
+layout_controls <- function(p) {
+  id <- function(x) paste0(p, x)
+  tagList(
+    checkboxInput(id("enable_hierarchical"), "Enable hierarchical layout", value = FALSE),
+    conditionalPanel(
+      condition = sprintf("input.%s == true", id("enable_hierarchical")),
+      selectInput(id("hier_direction"), "Direction:", choices = c("UD", "DU", "LR", "RL"), selected = "LR"),
+      helpText("Set the direction of the hierarchical layout. UD = Up-Down, DU = Down-Up, LR = Left-Right, RL = Right-Left."),
+      selectInput(id("hier_sort"), "Sort method:", choices = c("hubsize", "directed"), selected = "directed"),
+      helpText("Determines node sorting: 'directed' sorts by edge directions; 'hubsize' sorts by node degree."),
+      numericInput(id("hier_levelsep"), "Level separation:", value = 300, min = 10, max = 1000),
+      helpText("Distance between different levels in the hierarchy."),
+      numericInput(id("hier_nodespacing"), "Node spacing:", value = 300, min = 10, max = 1000),
+      helpText("Horizontal spacing between nodes on the same level."),
+      numericInput(id("hier_treespacing"), "Tree spacing:", value = 300, min = 10, max = 1000),
+      helpText("Spacing between different trees (connected components) in the layout."),
+      checkboxInput(id("hier_blockshift"), "Block shifting", value = TRUE),
+      helpText("Enables block shifting to avoid node overlap in hierarchical layout."),
+      checkboxInput(id("hier_edgemin"), "Edge minimization", value = TRUE),
+      helpText("Minimizes edge crossings for better readability."),
+      checkboxInput(id("hier_parentcent"), "Parent centralization", value = TRUE),
+      helpText("Centers parent nodes over their child nodes.")
+    ),
+    checkboxInput(id("enable_physics"), "Enable physics (BarnesHut)", value = TRUE),
+    conditionalPanel(
+      condition = sprintf("input.%s == true && input.%s == false", id("enable_physics"), id("enable_hierarchical")),
+      numericInput(id("phys_stabilization_iter"), "Stabilization iterations:", value = 500, min = 0, max = 5000),
+      helpText("Number of iterations for physics simulation stabilization."),
+      numericInput(id("phys_gravity"), "Central gravity:", value = 0.05, min = 0, max = 5, step = 0.1),
+      helpText("Strength of the central gravity pulling nodes towards the center."),
+      numericInput(id("phys_spring_length"), "Spring length:", value = 120, min = 10, max = 500),
+      helpText("Ideal distance between connected nodes."),
+      numericInput(id("phys_spring_constant"), "Spring constant:", value = 0.05, min = 0, max = 1, step = 0.01),
+      helpText("Stiffness of the springs between nodes."),
+      numericInput(id("phys_damping"), "Damping:", value = 0.5, min = 0, max = 1, step = 0.01),
+      helpText("Amount of friction to slow down node movement."),
+      # vis.js attend ici un nombre entre 0 et 1, pas un booleen.
+      numericInput(id("phys_avoidoverlap"), "Avoid node overlap:", value = 0, min = 0, max = 1, step = 0.1),
+      helpText("0 = nodes may overlap, 1 = maximum repulsion between nodes.")
+    )
+  )
+}
+
+# Applique au reseau les reglages de layout de l'onglet prefixe par p.
+apply_layout <- function(net, input, p) {
+  g <- function(x) input[[paste0(p, x)]]
+  if (isTRUE(g("enable_hierarchical"))) {
+    net %>%
+      visHierarchicalLayout(
+        direction            = g("hier_direction"),
+        levelSeparation      = g("hier_levelsep"),
+        nodeSpacing          = g("hier_nodespacing"),
+        treeSpacing          = g("hier_treespacing"),
+        blockShifting        = g("hier_blockshift"),
+        edgeMinimization     = g("hier_edgemin"),
+        parentCentralization = g("hier_parentcent"),
+        sortMethod           = g("hier_sort")
+      ) %>%
+      visPhysics(enabled = FALSE)
+  } else if (isTRUE(g("enable_physics"))) {
+    net %>%
+      visPhysics(
+        enabled       = TRUE,
+        solver        = "barnesHut",
+        stabilization = list(iterations = g("phys_stabilization_iter")),
+        barnesHut = list(
+          centralGravity = g("phys_gravity"),
+          springLength   = g("phys_spring_length"),
+          springConstant = g("phys_spring_constant"),
+          damping        = g("phys_damping"),
+          avoidOverlap   = as.numeric(g("phys_avoidoverlap"))
+        )
+      )
+  } else {
+    net %>% visPhysics(enabled = FALSE)
+  }
+}
+
+
 # ------------------------------------------------------------------------------------------------
                                             # UI #
 # ------------------------------------------------------------------------------------------------
@@ -121,48 +203,7 @@ ui <- page_navbar(
                 tags$h4("Legend:"),
                 uiOutput("legend"), 
                 tags$hr(),
-                checkboxInput("enable_hierarchical", "Enable hierarchical layout", value = FALSE),
-                conditionalPanel(
-                  condition = "input.enable_hierarchical == true",
-                  selectInput("hier_direction", "Direction:", choices = c("UD", "DU", "LR", "RL"), selected = "LR"),
-                  helpText("Set the direction of the hierarchical layout. UD = Up-Down, DU = Down-Up, LR = Left-Right, RL = Right-Left."),
-                    selectInput(
-                    "hier_sort", 
-                    "Sort method:", 
-                    choices = c("hubsize", "directed"), 
-                    selected = "directed"
-                  ),
-                  helpText("Determines node sorting: 'directed' sorts by edge directions; 'hubsize' sorts by node degree."),
-                  numericInput("hier_levelsep", "Level separation:", value = 300, min = 10, max = 1000),
-                  helpText("Distance between different levels in the hierarchy."),
-                  numericInput("hier_nodespacing", "Node spacing:", value = 300, min = 10, max = 1000),
-                  helpText("Horizontal spacing between nodes on the same level."),
-                  numericInput("hier_treespacing", "Tree spacing:", value = 300, min = 10, max = 1000),
-                  helpText("Spacing between different trees (connected components) in the layout."),
-                  checkboxInput("hier_blockshift", "Block shifting", value = TRUE),
-                  helpText("Enables block shifting to avoid node overlap in hierarchical layout."),
-                  checkboxInput("hier_edgemin", "Edge minimization", value = TRUE),
-                  helpText("Minimizes edge crossings for better readability."),
-                  checkboxInput("hier_parentcent", "Parent centralization", value = TRUE),
-                  helpText("Centers parent nodes over their child nodes.")
-                ),
-                
-                checkboxInput("enable_physics", "Enable physics (BarnesHut)", value = TRUE),
-                conditionalPanel(
-                  condition = "input.enable_physics == true && input.enable_hierarchical == false",
-                  numericInput("phys_stabilization_iter", "Stabilization iterations:", value = 500, min = 0, max = 5000),
-                  helpText("Number of iterations for physics simulation stabilization."),
-                  numericInput("phys_gravity", "Central gravity:", value = 0.05, min = 0, max = 5, step = 0.1),
-                  helpText("Strength of the central gravity pulling nodes towards the center."),
-                  numericInput("phys_spring_length", "Spring length:", value = 120, min = 10, max = 500),
-                  helpText("Ideal distance between connected nodes."),
-                  numericInput("phys_spring_constant", "Spring constant:", value = 0.05, min = 0, max = 1, step = 0.01),
-                  helpText("Stiffness of the springs between nodes."),
-                  numericInput("phys_damping", "Damping:", value = 0.5, min = 0, max = 1, step = 0.01),
-                  helpText("Amount of friction to slow down node movement."),
-                  checkboxInput("phys_avoidOverlap", "Avoid node overlap", value = FALSE),
-                  helpText("Prevents nodes from overlapping in the physics simulation.")
-                )
+                layout_controls("m_")
               ),
               card(
                 card_header(textOutput("module_title")),
@@ -183,48 +224,7 @@ ui <- page_navbar(
                 tags$h4("Legend:"),
                 uiOutput("focus_legend"),
                 tags$hr(),
-                checkboxInput("enable_hierarchical", "Enable hierarchical layout", value = FALSE),
-                conditionalPanel(
-                  condition = "input.enable_hierarchical == true",
-                  selectInput("hier_direction", "Direction:", choices = c("UD", "DU", "LR", "RL"), selected = "LR"),
-                  helpText("Set the direction of the hierarchical layout. UD = Up-Down, DU = Down-Up, LR = Left-Right, RL = Right-Left."),
-                    selectInput(
-                    "hier_sort", 
-                    "Sort method:", 
-                    choices = c("hubsize", "directed"), 
-                    selected = "directed"
-                  ),
-                  helpText("Determines node sorting: 'directed' sorts by edge directions; 'hubsize' sorts by node degree."),
-                  numericInput("hier_levelsep", "Level separation:", value = 300, min = 10, max = 1000),
-                  helpText("Distance between different levels in the hierarchy."),
-                  numericInput("hier_nodespacing", "Node spacing:", value = 300, min = 10, max = 1000),
-                  helpText("Horizontal spacing between nodes on the same level."),
-                  numericInput("hier_treespacing", "Tree spacing:", value = 300, min = 10, max = 1000),
-                  helpText("Spacing between different trees (connected components) in the layout."),
-                  checkboxInput("hier_blockshift", "Block shifting", value = TRUE),
-                  helpText("Enables block shifting to avoid node overlap in hierarchical layout."),
-                  checkboxInput("hier_edgemin", "Edge minimization", value = TRUE),
-                  helpText("Minimizes edge crossings for better readability."),
-                  checkboxInput("hier_parentcent", "Parent centralization", value = TRUE),
-                  helpText("Centers parent nodes over their child nodes.")
-                ),
-                
-                checkboxInput("enable_physics", "Enable physics (BarnesHut)", value = TRUE),
-                conditionalPanel(
-                  condition = "input.enable_physics == true && input.enable_hierarchical == false",
-                  numericInput("phys_stabilization_iter", "Stabilization iterations:", value = 500, min = 0, max = 5000),
-                  helpText("Number of iterations for physics simulation stabilization."),
-                  numericInput("phys_gravity", "Central gravity:", value = 0.05, min = 0, max = 5, step = 0.1),
-                  helpText("Strength of the central gravity pulling nodes towards the center."),
-                  numericInput("phys_spring_length", "Spring length:", value = 120, min = 10, max = 500),
-                  helpText("Ideal distance between connected nodes."),
-                  numericInput("phys_spring_constant", "Spring constant:", value = 0.05, min = 0, max = 1, step = 0.01),
-                  helpText("Stiffness of the springs between nodes."),
-                  numericInput("phys_damping", "Damping:", value = 0.5, min = 0, max = 1, step = 0.01),
-                  helpText("Amount of friction to slow down node movement."),
-                  checkboxInput("phys_avoidOverlap", "Avoid node overlap", value = FALSE),
-                  helpText("Prevents nodes from overlapping in the physics simulation.")
-                )
+                layout_controls("f_")
               ),
               card(
                 card_header(textOutput("focus_title")),
@@ -280,8 +280,7 @@ server <- function(input, output, session) {
     data <- graph_reactive()
     
     net <- visNetwork(data$nodes, data$edges, height = h, width = w) %>%
-      visNodes(shape = data$nodes$shape,
-               fixed = FALSE,
+      visNodes(fixed = FALSE,
                font = list(size = 20, face = "arial")) %>%
       visEdges(arrows = "to") %>%
       visOptions(
@@ -294,37 +293,7 @@ server <- function(input, output, session) {
         dragView = TRUE
       ) 
           
-    if (input$enable_hierarchical) {
-      net <- net %>%
-        visHierarchicalLayout(
-          direction = input$hier_direction,
-          levelSeparation = input$hier_levelsep,
-          nodeSpacing = input$hier_nodespacing,
-          treeSpacing = input$hier_treespacing,
-          blockShifting = input$hier_blockshift,
-          edgeMinimization = input$hier_edgemin,
-          parentCentralization = input$hier_parentcent,
-            sortMethod = input$hier_sort  # <-- ici !
-        ) %>%
-        visPhysics(enabled = FALSE)
-    } else if (input$enable_physics) {
-      net <- net %>%
-        visPhysics(
-          enabled = TRUE,
-          solver = "barnesHut",
-          stabilization = list(iterations = input$phys_stabilization_iter),
-          barnesHut = list(
-            centralGravity = input$phys_gravity,
-            springLength = input$phys_spring_length,
-            springConstant = input$phys_spring_constant,
-            damping = input$phys_damping,
-            avoidOverlap = input$phys_avoidOverlap
-          )
-        )
-    } else {
-      net <- net %>%
-        visPhysics(enabled = FALSE)
-    }
+    net <- apply_layout(net, input, "m_")
       
       
       net <- net %>% visEvents(
@@ -436,8 +405,7 @@ server <- function(input, output, session) {
       req(!is.null(data))
       
       net <- visNetwork(data$nodes, data$edges, height = h, width = w) %>%
-        visNodes(shape = data$nodes$shape,
-                 fixed = FALSE,
+        visNodes(fixed = FALSE,
                  font = list(size = 20, face = "arial")) %>%
         visEdges(arrows = "to") %>%
         visOptions(
@@ -449,38 +417,7 @@ server <- function(input, output, session) {
           zoomView = FALSE
         )
       
-              if (input$enable_hierarchical) {
-          net <- net %>%
-            visHierarchicalLayout(
-              direction = input$hier_direction,
-              levelSeparation = input$hier_levelsep,
-              nodeSpacing = input$hier_nodespacing,
-              treeSpacing = input$hier_treespacing,
-              blockShifting = input$hier_blockshift,
-              edgeMinimization = input$hier_edgemin,
-              parentCentralization = input$hier_parentcent,
-            sortMethod = input$hier_sort  # <-- ici !
-
-            ) %>%
-            visPhysics(enabled = FALSE)
-        } else if (input$enable_physics) {
-          net <- net %>%
-            visPhysics(
-              enabled = TRUE,
-              solver = "barnesHut",
-              stabilization = list(iterations = input$phys_stabilization_iter),
-              barnesHut = list(
-                centralGravity = input$phys_gravity,
-                springLength = input$phys_spring_length,
-                springConstant = input$phys_spring_constant,
-                damping = input$phys_damping,
-                avoidOverlap = input$phys_avoidOverlap
-              )
-            )
-        } else {
-          net <- net %>%
-            visPhysics(enabled = FALSE)
-        }
+              net <- apply_layout(net, input, "f_")
     
       net %>%
         visEvents(
@@ -554,16 +491,19 @@ server <- function(input, output, session) {
         easyClose = TRUE
       ))
     })
-      observeEvent(input$enable_hierarchical, {
-    if (input$enable_hierarchical) {
-      updateCheckboxInput(session, "enable_physics", value = FALSE)
-    }
-  })
-
-  observeEvent(input$enable_physics, {
-    if (input$enable_physics) {
-      updateCheckboxInput(session, "enable_hierarchical", value = FALSE)
-    }
+  # Hierarchique et physique s'excluent : cocher l'un decoche l'autre, par onglet.
+  for (p in c("m_", "f_")) local({
+    prefix <- p
+    observeEvent(input[[paste0(prefix, "enable_hierarchical")]], {
+      if (isTRUE(input[[paste0(prefix, "enable_hierarchical")]])) {
+        updateCheckboxInput(session, paste0(prefix, "enable_physics"), value = FALSE)
+      }
+    })
+    observeEvent(input[[paste0(prefix, "enable_physics")]], {
+      if (isTRUE(input[[paste0(prefix, "enable_physics")]])) {
+        updateCheckboxInput(session, paste0(prefix, "enable_hierarchical"), value = FALSE)
+      }
+    })
   })
 
 }
