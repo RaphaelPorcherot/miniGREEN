@@ -165,7 +165,20 @@ add("|---|---|")
 for (n in added) add(sprintf("| `%s` | %d |", esc(n), e26[[n]]$line))
 add("\n</details>")
 
-writeLines(w, OUT)
+MARKER <- "<!-- everything below is written by hand and survives regeneration -->"
+
+## Whatever a human wrote below the marker is kept. The sections above are
+## derived from the two models and are rewritten every time; the analysis below
+## is not, and losing it to a regeneration would be the obvious way to lose it.
+tail_kept <- character()
+if (file.exists(OUT)) {
+  old <- readLines(OUT, warn = FALSE)
+  m <- grep(MARKER, old, fixed = TRUE)
+  if (length(m)) tail_kept <- old[m[1]:length(old)]
+}
+if (!length(tail_kept)) tail_kept <- c("", "---", "", MARKER, "")
+
+writeLines(c(w, tail_kept), OUT)
 cat(sprintf(paste0("DIFF-2025-2026.md\n",
   "  removed %d | added %d | untouched %d\n",
   "  same name, constant changed %d | equation rewritten %d\n",
