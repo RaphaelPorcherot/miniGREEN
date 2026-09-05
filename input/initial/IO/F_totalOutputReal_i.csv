@@ -1,20 +1,20 @@
-description,industry,value
-"Total Product, not PIB,  GET DIRECT CONSTANTS('economy.xlsx', 'inputoutput', 'C3') ",agri, 51486000000
-,mining, 8488450000
-,manufacturing, 840928000000
-,petroleum, 55030800000
-,electricity, 81924600000
-,water, 40706800000
-,construction, 253789000000
-,trade, 321171000000
-,transport, 176230000000
-,hospitality, 98492400000
-,ict, 129114000000
-,finance, 132655000000
-,realestate, 218428000000
-,profserv, 257921000000
-,public, 136543000000
-,education, 74505500000
-,health, 142941000000
-,entertainment, 41307600000
-,otherserv, 56320700000
+"description","region","industry","value"
+"Total Product, not PIB,  GET DIRECT CONSTANTS('economy.xlsx', 'inputoutput', 'C3') ","IT","agri",5.1486e+10
+"","IT","mining",8488450000
+"","IT","manufacturing",8.40928e+11
+"","IT","petroleum",55030800000
+"","IT","electricity",81924600000
+"","IT","water",40706800000
+"","IT","construction",2.53789e+11
+"","IT","trade",3.21171e+11
+"","IT","transport",1.7623e+11
+"","IT","hospitality",98492400000
+"","IT","ict",1.29114e+11
+"","IT","finance",1.32655e+11
+"","IT","realestate",2.18428e+11
+"","IT","profserv",2.57921e+11
+"","IT","public",1.36543e+11
+"","IT","education",74505500000
+"","IT","health",1.42941e+11
+"","IT","entertainment",41307600000
+"","IT","otherserv",56320700000

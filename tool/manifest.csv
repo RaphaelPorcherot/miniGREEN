@@ -1,0 +1,19 @@
+source,vensim_name,r_name,table,module,dimensions,recode,note
+data-to-convert/F_Xnom_i.txt,exp initial i,F_Xnom_i,initial,TR,Industry,,
+data-to-convert/F_gXnom_i.txt,S1 g exp i,F_gXnom_i,initial,TR,Industry,,
+data-to-convert/R_a_ii.txt,initial a ii,R_a_ii,initial,IO,"Industry,Industry",,"description hand-edited in the CSV: kept"
+data-to-convert/SH_impZ_ii.txt,S1 share imp Z ii,SH_impZ_ii,initial,IO,"Industry,Industry",,
+data-to-convert/SH_enSrc_enDemZ_in.txt,initial share source Ed Z nrg i,SH_enSrc_enDemZ_in,initial,EN,"Industry,EnergySource",,
+data-to-convert/R_Zdom_to_EnProd_ii.txt,ME ii,R_Zdom_to_EnProd_ii,parameter,EN,"Industry,Industry",,
+data-to-convert/R_enCons_to_CO2_in.txt,coeff E C to CO2 nrg i,R_enCons_to_CO2_in,parameter,EN,"Industry,EnergySource",,
+data-to-convert/R_enSrc_to_enCons_in.txt,coef Ed to C nrg i,R_enSrc_to_enCons_in,parameter,EN,"Industry,EnergySource",,
+data-to-convert/R_gRenewShare_2010_2021_i.txt,RES shares g rates 1021 i,R_gRenewShare_2010_2021_i,parameter,EN,Industry,,
+data-to-convert/R_gRenewShare_2021_2030_i.txt,S1 RES shares g rates 2130 i,R_gRenewShare_2021_2030_i,parameter,EN,Industry,,
+data-to-convert/SH_pK_i.txt,price capital weights i,SH_pK_i,parameter,I,Industry,,
+data-to-convert/bridgeNaceCoicop_ip.txt,bridge ip,bridgeNaceCoicop_ip,parameter,C,"Industry,COICOP",,
+data-to-convert/_coeffWageDispersion_isg.txt,Coefficient wage dispersion,coeffWageDispersion_isg,parameter,L,"Gender,Industry,PopGroup",mid=medium;hig=high,"Vensim skill has 3 modalities, PopGroup has 5: child and cap are padded with zeros"
+data-lookup/priceETSfcst.txt,pETS forecast,priceETSfcst,lookup,CADA,,,
+data-lookup/freeETS_i.txt,Free ETS i,freeETS_i,lookup,CADA,industry,,
+data-lookup/SH_consExpFctInc_p.txt,beta fct p,SH_consExpFctInc_p,lookup,C,coicop,spaces,
+data-lookup/minWageAverageChange_gis.txt,min wage average change gis,minWageAverageChange_gis,lookup,L,"gender,industry,skill",mid=medium;hig=high,"policy removed in the 2026 model"
+data-lookup/maxWageAverageChange_gis.txt,max wage average change gis,maxWageAverageChange_gis,lookup,L,"gender,industry,skill",mid=medium;hig=high,"policy removed in the 2026 model"

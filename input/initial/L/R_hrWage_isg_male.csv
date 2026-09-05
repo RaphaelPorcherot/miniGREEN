@@ -1,20 +1,20 @@
-description,industry,child,low,medium,high,cap 
-"wages initial gis : (its a level) - mean hourly wage by skill gender industry GET_DIRECT_CONSTANTS('economy.xlsx', 'labour', 'C36')",agri,0, 7.30396,10.7001,13.1647,0 
-,mining,0,13.34050,15.4822,22.4451,0 
-,manufacturing,0,13.34050,15.4822,22.4451,0 
-,petroleum,0,13.34050,15.4822,22.4451,0 
-,electricity,0,13.34050,15.4822,22.4451,0 
-,water,0,13.34050,15.4822,22.4451,0 
-,construction,0,10.62930,12.2900,22.8267,0 
-,trade,0,11.10890,13.8470,15.8520,0 
-,transport,0,12.87340,16.3151,23.3689,0 
-,hospitality,0, 9.15770,10.3018,19.0164,0 
-,ict,0,14.15650,17.5951,24.9645,0 
-,finance,0,19.41770,27.8353,30.9245,0 
-,realestate,0,12.01570,15.3995,18.7774,0 
-,profserv,0,12.01570,15.3995,18.7774,0 
-,public,0,18.12500,19.1798,26.7670,0 
-,education,0,14.26240,16.7871,26.6162,0 
-,health,0,15.56370,16.6395,31.1290,0 
-,entertainment,0,13.16270,14.5324,19.7468,0 
-,otherserv,0,13.16270,14.5324,19.7468,0 
+"description","region","industry","child","low","medium","high","cap"
+"wages initial gis : (its a level) - mean hourly wage by skill gender industry GET_DIRECT_CONSTANTS('economy.xlsx', 'labour', 'C36')","IT","agri",0,7.30396,10.7001,13.1647,0
+"","IT","mining",0,13.3405,15.4822,22.4451,0
+"","IT","manufacturing",0,13.3405,15.4822,22.4451,0
+"","IT","petroleum",0,13.3405,15.4822,22.4451,0
+"","IT","electricity",0,13.3405,15.4822,22.4451,0
+"","IT","water",0,13.3405,15.4822,22.4451,0
+"","IT","construction",0,10.6293,12.29,22.8267,0
+"","IT","trade",0,11.1089,13.847,15.852,0
+"","IT","transport",0,12.8734,16.3151,23.3689,0
+"","IT","hospitality",0,9.1577,10.3018,19.0164,0
+"","IT","ict",0,14.1565,17.5951,24.9645,0
+"","IT","finance",0,19.4177,27.8353,30.9245,0
+"","IT","realestate",0,12.0157,15.3995,18.7774,0
+"","IT","profserv",0,12.0157,15.3995,18.7774,0
+"","IT","public",0,18.125,19.1798,26.767,0
+"","IT","education",0,14.2624,16.7871,26.6162,0
+"","IT","health",0,15.5637,16.6395,31.129,0
+"","IT","entertainment",0,13.1627,14.5324,19.7468,0
+"","IT","otherserv",0,13.1627,14.5324,19.7468,0

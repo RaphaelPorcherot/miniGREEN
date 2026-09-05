@@ -1,6 +1,6 @@
-description,skill,male,female 
-,child, 0.00000000, 0.00000000 
-,low,-0.00581818,-0.00405455 
-,medium, 0.00246364,-0.00016364 
-,high, 0.00345455, 0.00422727 
-,cap, 0.00000000, 0.00000000 
+"description","region","skill","male","female"
+NA,"IT","child",0,0
+NA,"IT","low",-0.00581818,-0.00405455
+NA,"IT","medium",0.00246364,-0.00016364
+NA,"IT","high",0.00345455,0.00422727
+NA,"IT","cap",0,0

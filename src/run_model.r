@@ -88,7 +88,7 @@ loadFill("lookup") # lookup
 dir <- path_input("parameter", "_non_standard")
 
 # R_mortality_csg
-temp  <- read.csv(file.path(dir, "R_mortality_csg.csv"), header=TRUE)
+temp  <- read_input_csv(file.path(dir, "R_mortality_csg.csv"))
 R_mortality_csg <- template_population_csg
 R_mortality_csg[, ,"male"] <-  temp$male
 R_mortality_csg[, ,"female"] <- temp$female
@@ -103,14 +103,14 @@ dt_set("dp", module = "DEM", name = "R_mortality_csg", value = R_mortality_csg)
 ## DATA FROM ILO, labor force participation rate 2020, 15-64y -0.0248
 ## DATA FROM ILO, labor force participation rate 2021, 15-64y: 0.0061
 ## Assuming complete recover of labor force participation rate to pre-pandemic level \2022, 15-64y: 0.0192
-temp  <- read.csv(file.path(dir, "R_dLFRPCovid.csv"), header=TRUE)
+temp  <- read_input_csv(file.path(dir, "R_dLFRPCovid.csv"))
 R_dLFRPCovid <- temp$changeRate
 
 # --- R_dGFCFrealCovid
 ##2020 GET DIRECT CONSTANTS('economy.xlsx', 'inputoutput' , 'cov_i_1')    
 ##2021-2022 GET DIRECT CONSTANTS('economy.xlsx', 'inputoutput' , 'cov_i_2')
 # note : 2021 value is recycled for 2022 value.
-temp  <- read.csv(file.path(dir, "R_dGFCFrealCovid.csv"), header=TRUE)
+temp  <- read_input_csv(file.path(dir, "R_dGFCFrealCovid.csv"))
 R_dGFCFrealCovid <- temp$changeRate
 
 # --- R_dXnomCovid
@@ -118,7 +118,7 @@ R_dGFCFrealCovid <- temp$changeRate
 # c19 exp 2021= 0.08 GET DIRECT CONSTANTS('economy.xlsx', 'inputoutput' , 'cov_x_2')
 # IF THEN ELSE(Time=10*Year 1,c19 exp 2020,IF THEN ELSE(Time=11*Year 1,c19 exp 2021,0)\
 # note : 2021 value recycled for 2022 value.
-temp  <- read.csv(file.path(dir, "R_dXnomCovid.csv"), header=TRUE)
+temp  <- read_input_csv(file.path(dir, "R_dXnomCovid.csv"))
 R_dXnomCovid <- temp$changeRate
 
 # --- R_dCrealCovid.csv
@@ -126,7 +126,7 @@ R_dXnomCovid <- temp$changeRate
 #c19 cons 2021=0.046 GET DIRECT CONSTANTS('economy.xlsx', 'inputoutput' , 'cov_c_2')	
 # IF THEN ELSE(Time=10*Year 1,C19 cons 2020,IF THEN ELSE(Time=11* Year 1,c19 cons 2021,IF THEN ELSE(Time=12*Year 1,c19 cons 2021,0)))
 # note : 2021 value recycled for 2022 value, but THAT WAS ALREADY THE CASE IN THE VENSIM MODEL (which treated hence inconsistenly GFGC and Xnom) 
-temp  <- read.csv(file.path(dir, "R_dCrealCovid.csv"), header=TRUE)
+temp  <- read_input_csv(file.path(dir, "R_dCrealCovid.csv"))
 R_dCrealCovid <- temp$changeRate
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -142,7 +142,7 @@ dt_set("dp", module = "L", name = "R_dCrealCovid", value = R_dCrealCovid)
 dir <- path_input("initial", "_non_standard")
 
 ## R_LFRP_csg : LFPR initial gs GET DIRECT CONSTANTS('economy.xlsx', 'labour', 'C58')
-temp  <- read.csv(file.path(dir, "R_LFRP_csg.csv"), header=TRUE)
+temp  <- read_input_csv(file.path(dir, "R_LFRP_csg.csv"))
 female_participationL_s <- temp$female
 male_participationL_s <-  temp$male
 R_LFRP_csg <- template_population_csg
@@ -156,15 +156,15 @@ for(i in 2:(length(cohort)-1)){
     ### Defining population cohorts by gender : init pop cg 
     ### GET DIRECT CONSTANTS('demography.xlsx', 'demography' , 'C3*' ) 
 population_csg <- template_population_csg
-temp  <- read.csv(file.path(dir, "ST_population_cg.csv"), header=TRUE)
+temp  <- read_input_csv(file.path(dir, "ST_population_cg.csv"))
 population_csg[, ,"male"] <-  temp$male
 population_csg[, ,"female"] <- temp$female
     ### Values for female and male cohorts : 
     ### init distr skill cgs GET_DIRECT_CONSTANTS('demography.xlsx', 'demography' , 'C8*' )
     ### previous values were adding up to (slightly) more than 1. I changed a bit, substracting (or summing) from (to) the high skill values.b
-temp <- read.csv(file.path(dir, "SH_skillByCohort_male.csv"), header=TRUE)
+temp <- read_input_csv(file.path(dir, "SH_skillByCohort_male.csv"))
 male_cs <- as.matrix(temp)
-temp <- read.csv(file.path(dir, "SH_skillByCohort_female.csv"), header=TRUE)
+temp <- read_input_csv(file.path(dir, "SH_skillByCohort_female.csv"))
 female_cs <- as.matrix(temp)
 
     ### Normalize male_cs to one

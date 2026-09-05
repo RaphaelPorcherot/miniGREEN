@@ -1,6 +1,6 @@
-sensibilitySkillToUnemployment,value
-child,0
-low,0.736  
-medium,0.753  
-high,0.688 
-cap,0
+"region","sensibilitySkillToUnemployment","value"
+"IT","child",0
+"IT","low",0.736
+"IT","medium",0.753
+"IT","high",0.688
+"IT","cap",0

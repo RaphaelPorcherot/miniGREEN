@@ -130,7 +130,23 @@ loadFillPol <- function(name, value, description=NULL) {
 
 # Auxiliary function: read CSV, validate columns, extract description ---------------------------------------
 
-read_and_validate_csv <- function(file_path, exclude_cols = NULL, must_have_cols = NULL) {
+# Columns that carry information about the row rather than data in it. They are
+# dropped by NAME, never by position: `exclude_cols = c(1, 2)` broke the moment
+# a metadata column was added, and broke silently — the dimension column would
+# have been read as data.
+META_COLS <- c("description", "region")
+
+## Read an input CSV and drop the metadata columns. Use this rather than
+## read.csv() for the hand-shaped inputs under _non_standard: they are read by
+## column name or turned straight into a matrix, and a stray character column
+## breaks the second silently in the first case and loudly in the second.
+read_input_csv <- function(path) {
+  d <- read.csv(path, header = TRUE, check.names = FALSE)
+  d[, setdiff(colnames(d), META_COLS), drop = FALSE]
+}
+
+read_and_validate_csv <- function(file_path, exclude_cols = NULL, must_have_cols = NULL,
+                                  drop_dim_col = FALSE) {
 
   data <- read.csv(file_path, header = TRUE)
   csv_basename <- basename(file_path)
@@ -150,10 +166,16 @@ read_and_validate_csv <- function(file_path, exclude_cols = NULL, must_have_cols
     message(paste0("No valid description found in file: ", csv_basename, ". Consider adding a description."))
     desc <- NA
   }
-  # Exclude specified columns
-  if (!is.null(exclude_cols)) {
-    data <- data[, -exclude_cols, drop = FALSE]
-  }
+  # Drop the metadata columns, by name
+  data <- data[, setdiff(colnames(data), META_COLS), drop = FALSE]
+
+  # For wide layouts the first remaining column names the rows; it is a label,
+  # not a value.
+  if (drop_dim_col && ncol(data) > 1) data <- data[, -1, drop = FALSE]
+
+  # kept for callers that still pass it; positions are no longer used
+  if (!is.null(exclude_cols)) invisible(NULL)
+
   return(list(data = data, description = desc))
 }
 
@@ -183,7 +205,7 @@ load_1d <- function(file_path, template, description) {
 
 load_2d <- function(file_path, template, description) {
   # Read and validate the CSV data
-  csv_data <- read_and_validate_csv(file_path, exclude_cols = c(1, 2))  # Exclude the first 2 columns
+  csv_data <- read_and_validate_csv(file_path, drop_dim_col = TRUE)
 
   # Check if dimensions match between the CSV data and the template
   if (dim(csv_data$data)[1] != dim(template)[1] || dim(csv_data$data)[2] != dim(template)[2]) {
@@ -224,7 +246,7 @@ load_3d <- function(file_path, template, description) {
     # Create temp_file_path with correct modality suffix 
     temp_file_path <- sub("_[^_]*.csv$", paste0("_", mod_last_dim[mod], ".csv"), file_path)
     # Read and validate the CSV data
-    csv_data <- read_and_validate_csv(temp_file_path, exclude_cols = c(1, 2))  # Exclude the first 2 columns
+    csv_data <- read_and_validate_csv(temp_file_path, drop_dim_col = TRUE)
 
     # Vérification des dimensions avant affectation
     if (dim(csv_data$data)[1] != dim(template)[1] || dim(csv_data$data)[2] != dim(template)[2]) {
@@ -257,7 +279,7 @@ load_3d <- function(file_path, template, description) {
 load_lookup <- function(name, module, file_path, description = NULL) {
 
   # Read and validate the CSV
-  csv_data <- read_and_validate_csv(file_path, exclude_cols = 1)
+  csv_data <- read_and_validate_csv(file_path)
 
   value <- csv_data$data
   desc <- if (!is.null(description)) description else csv_data$description

@@ -1,20 +1,20 @@
-description,industry,value
-"Real labour productivity Goods/(Hours*People) GET DIRECT CONSTANTS('economy.xlsx', 'labour', 'C5')",agri, 20.557
-,mining, 180.656
-,manufacturing, 120.455
-,petroleum, 1399.56
-,electricity, 245.745
-,water, 245.745
-,construction, 69.569
-,trade, 44.648
-,transport, 79.617
-,hospitality, 42.563
-,ict, 116.957
-,finance, 107.277
-,realestate, 590.546
-,profserv, 60.961
-,public, 65.425
-,education, 42.407
-,health, 52.886
-,entertainment, 78.347
-,otherserv, 16.234
+"description","region","industry","value"
+"Real labour productivity Goods/(Hours*People) GET DIRECT CONSTANTS('economy.xlsx', 'labour', 'C5')","IT","agri",20.557
+"","IT","mining",180.656
+"","IT","manufacturing",120.455
+"","IT","petroleum",1399.56
+"","IT","electricity",245.745
+"","IT","water",245.745
+"","IT","construction",69.569
+"","IT","trade",44.648
+"","IT","transport",79.617
+"","IT","hospitality",42.563
+"","IT","ict",116.957
+"","IT","finance",107.277
+"","IT","realestate",590.546
+"","IT","profserv",60.961
+"","IT","public",65.425
+"","IT","education",42.407
+"","IT","health",52.886
+"","IT","entertainment",78.347
+"","IT","otherserv",16.234
