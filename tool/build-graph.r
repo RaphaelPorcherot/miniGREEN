@@ -124,13 +124,21 @@ pal <- if (length(types) <= 12) {
   grDevices::hcl.colors(length(types), "Set 3")
 }
 names(pal) <- types
-nodes$fillcolor <- pal[nodes$type]
-nodes$fillcolor[nodes$type == "lag"] <- "#F0F0F0"
+nodes$fillcolor   <- pal[nodes$type]
+nodes$bordercolor <- "#666666"
+
+# A lag is present but computed nowhere. Transparent inside, outlined outside:
+# it occupies a place in the graph without being produced by anything in it.
+nodes$fillcolor[nodes$type == "lag"]   <- "rgba(0,0,0,0)"
+nodes$bordercolor[nodes$type == "lag"] <- "#8A8A8A"
 
 # Shape carries Kind, colour carries the module: the two questions one asks of
 # a node are "what is it" and "where does it live", and they are orthogonal.
 # Only shapes that draw the label inside, so the graph stays readable.
-KIND_SHAPE <- c(state = "database", flow = "box", aux = "ellipse", lag = "text")
+# `text` draws neither background nor border, so a lag used to render as a bare
+# floating label and its colour was never shown. A box does, and the transparent
+# fill set below is what separates it from a flow, which is filled.
+KIND_SHAPE <- c(state = "database", flow = "box", aux = "ellipse", lag = "box")
 nodes$shape <- unname(KIND_SHAPE[nodes$kind])
 nodes$shape[is.na(nodes$shape)] <- "ellipse"
 

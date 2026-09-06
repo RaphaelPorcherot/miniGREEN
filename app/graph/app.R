@@ -25,8 +25,8 @@ KIND_GLOSS <- c(state = "a stock, carries the past",
                 flow  = "what moves a stock",
                 aux   = "computed then forgotten",
                 lag   = "enters from init")
-SHAPE_GLOSS <- c(database = "cylinder", box = "box",
-                 ellipse = "ellipse", text = "no border")
+KIND_SHAPE_WORD <- c(state = "cylinder", flow = "filled box",
+                     aux = "ellipse", lag = "outlined box")
 
 kinds_present <- KIND_ORDER[KIND_ORDER %in% unique(nodes$kind)]
 kind_counts   <- table(nodes$kind)
@@ -128,7 +128,7 @@ filter_controls <- function(p) {
   labels <- lapply(kinds_present, function(k) {
     HTML(sprintf("<b>%s</b> <span style='color:#888'>(%d, %s &mdash; %s)</span>",
                  k, kind_counts[[k]],
-                 SHAPE_GLOSS[[ graph_obj$kind_shape[[k]] ]], KIND_GLOSS[[k]]))
+                 KIND_SHAPE_WORD[[k]], KIND_GLOSS[[k]]))
   })
   tagList(
     checkboxGroupInput(id("kinds"), "Kinds:",
@@ -226,36 +226,52 @@ style_edges <- function(e) {
   )
 }
 
-# The tooltip answers "what is this", the modal answers "how is it computed".
+# A lag has no module of its own, so showing `type` would print "lag" twice.
+# What is worth saying is the module of the variable it carries.
+node_place <- function(n) {
+  ifelse(n$type != "lag", n$type,
+         ifelse(is.na(n$home) | n$home == "lag", "untraced", n$home))
+}
+
+# The tooltip answers "what is this", the panel answers "how is it computed".
 node_tooltip <- function(n) {
-  paste0("<b>", n$label, "</b><br>", n$kind, " &middot; ", n$type,
+  paste0("<b>", n$label, "</b><br>", n$kind, " &middot; ", node_place(n),
          ifelse(!is.na(n$equation), paste0("<br><code>", n$equation, "()</code>"), ""))
 }
 
-node_modal <- function(node_id, meta) {
+# The docked panel replaces the modal: a modal hides the graph, has to be
+# dismissed, and makes comparing two variables a four-click affair.
+node_detail <- function(node_id, meta) {
+  if (is.null(node_id) || length(node_id) != 1 || is.na(node_id)) {
+    return(div(class = "detail-hint",
+               "Double-click a node to see the equation that computes it."))
+  }
   i <- match(node_id, meta$id)
-  if (is.na(i)) return(invisible(NULL))
+  if (is.na(i)) {
+    return(div(class = "detail-hint",
+               "That node is not in the current view."))
+  }
   n  <- meta[i, ]
   eq <- if (!is.na(n$equation)) equations[match(n$equation, equations$name), ] else NULL
 
-  showModal(modalDialog(
-    title = n$label, size = "l", easyClose = TRUE,
-    tags$p(tags$span(class = "badge bg-secondary", n$kind), " ",
-           tags$span(class = "badge bg-light text-dark", n$type),
-           if (!is.na(n$home) && n$home != n$type)
-             tags$small(paste0("  carries a variable from ", n$home))),
-    tags$p(if (is.na(n$description)) tags$em("no description in the model")
-           else n$description),
-    if (!is.null(eq) && !is.na(eq$src)) tagList(
-      tags$hr(),
-      tags$p(tags$code(paste0(eq$name, "()")), " ",
-             tags$small(style = "color:#888", paste0(eq$file, ":", eq$line))),
-      tags$pre(style = paste("max-height:55vh; overflow:auto; background:#f7f7f7;",
-                             "padding:12px; border-radius:4px; font-size:12px;"),
-               eq$src)
-    ) else tags$p(tags$hr(), tags$em(
-      "no equation computes this object: it enters from init."))
-  ))
+  div(
+    class = "detail-panel",
+    div(
+      class = "d-flex justify-content-between align-items-baseline flex-wrap",
+      div(tags$strong(n$label), " ",
+          tags$span(class = "badge bg-secondary", n$kind), " ",
+          tags$span(class = "badge bg-light text-dark border", node_place(n))),
+      if (!is.null(eq) && !is.na(eq$src))
+        tags$small(class = "text-muted font-monospace",
+                   paste0(eq$name, "()  ", eq$file, ":", eq$line))
+    ),
+    tags$div(class = "text-muted small mt-1",
+             if (is.na(n$description)) tags$em("no description in the model")
+             else n$description),
+    if (!is.null(eq) && !is.na(eq$src)) tags$pre(eq$src)
+    else tags$div(class = "small mt-2",
+                  tags$em("no equation computes this object: it enters from init."))
+  )
 }
 
 # Apply the layout settings of the tab prefixed by p to the network.
@@ -297,9 +313,21 @@ apply_layout <- function(net, input, p) {
 # ------------------------------------------------------------------------------------------------
                                             # UI #
 # ------------------------------------------------------------------------------------------------
+PANEL_CSS <- HTML("
+  .graph-holder  { flex: 1 1 auto; min-height: 320px; position: relative; }
+  .detail-panel  { flex: 0 0 auto; border-top: 1px solid #dee2e6;
+                   max-height: 34vh; overflow: auto;
+                   padding: 10px 14px 12px; }
+  .detail-panel pre { background: #f7f7f7; padding: 10px; border-radius: 4px;
+                      font-size: 12px; margin: 6px 0 0; }
+  .detail-hint   { flex: 0 0 auto; border-top: 1px dashed #dee2e6;
+                   padding: 8px 14px; color: #999; font-size: 12px; }
+")
+
 ui <- page_navbar(
   title = "miniGREEN",
   theme = bs_theme(bootswatch = "flatly"),
+  header = tags$head(tags$style(PANEL_CSS)),
   
   ### --- Tab 1 : Graphe principal ---
   nav_panel("Module focus",
@@ -315,7 +343,9 @@ ui <- page_navbar(
               ),
               card(
                 card_header(textOutput("module_title")),
-                visNetworkOutput("graph", height = h, width = w)
+                div(class = "graph-holder",
+                    visNetworkOutput("graph", height = h, width = w)),
+                uiOutput("m_detail")
               )
             )
   ),
@@ -337,7 +367,9 @@ ui <- page_navbar(
               ),
               card(
                 card_header(textOutput("focus_title")),
-                visNetworkOutput("focus_graph", height = h, width = w)
+                div(class = "graph-holder",
+                    visNetworkOutput("focus_graph", height = h, width = w)),
+                uiOutput("f_detail")
               )
             )
   )
@@ -374,7 +406,9 @@ server <- function(input, output, session) {
     # module. Neither is recomputed here.
     nodes_df <- data.frame(
       id = nodes_sub$id, label = nodes_sub$label,
-      group = nodes_sub$type, color = nodes_sub$fillcolor,
+      group = nodes_sub$type,
+      color.background = nodes_sub$fillcolor,
+      color.border     = nodes_sub$bordercolor,
       title = node_tooltip(nodes_sub),
       x = nodes_sub$x, y = nodes_sub$y, shape = nodes_sub$shape,
       stringsAsFactors = FALSE
@@ -405,11 +439,14 @@ server <- function(input, output, session) {
     net <- apply_layout(net, input, "m_")
       
       
+      # Single click keeps vis.js's own highlightNearest, which is the answer to
+      # "what does this touch". Double click answers "how is it computed", and
+      # on empty space it clears the panel.
       net <- net |> visEvents(
-        selectNode = "function(params) {
-          if(params.nodes.length > 0){
-            Shiny.setInputValue('clicked_node', params.nodes[0], {priority: 'event'});
-          }
+        doubleClick = "function(params) {
+          Shiny.setInputValue('m_selected',
+            params.nodes.length > 0 ? params.nodes[0] : null,
+            {priority: 'event'});
         }"
       )
   })
@@ -426,12 +463,12 @@ server <- function(input, output, session) {
   output$legend <- renderUI({
     data <- graph_reactive()
     req(!is.null(data))
-    nodes_df <- data$nodes
-    groups <- sort(unique(nodes_df$group))
-    
+    meta <- data$meta
+    groups <- sort(unique(meta$type))
+
     colors <- sapply(groups, function(g) {
-      col <- nodes_df$color[which(nodes_df$group == g)[1]]
-      if (is.na(col) | is.null(col)) "#cccccc" else col
+      col <- meta$fillcolor[which(meta$type == g)[1]]
+      if (is.na(col) || is.null(col)) "#cccccc" else col
     })
     
     div(
@@ -501,7 +538,9 @@ server <- function(input, output, session) {
     is_focus <- nodes_sub$id == current_id
     nodes_df <- data.frame(
       id = nodes_sub$id, label = nodes_sub$label,
-      group = nodes_sub$type, color = nodes_sub$fillcolor,
+      group = nodes_sub$type,
+      color.background = nodes_sub$fillcolor,
+      color.border     = nodes_sub$bordercolor,
       title = node_tooltip(nodes_sub),
       x = nodes_sub$x, y = nodes_sub$y, shape = nodes_sub$shape,
       borderWidth = ifelse(is_focus, 4, 1),
@@ -533,10 +572,10 @@ server <- function(input, output, session) {
     
       net |>
         visEvents(
-          selectNode = "function(params) {
-            if(params.nodes.length > 0){
-              Shiny.setInputValue('clicked_focus_node', params.nodes[0], {priority: 'event'});
-            }
+          doubleClick = "function(params) {
+            Shiny.setInputValue('f_selected',
+              params.nodes.length > 0 ? params.nodes[0] : null,
+              {priority: 'event'});
           }"
         )
     })
@@ -546,12 +585,12 @@ server <- function(input, output, session) {
     data <- focus_graph_reactive()
     req(!is.null(data))
     
-    nodes_df <- data$nodes
-    types <- sort(unique(nodes_df$group))
-    
+    meta <- data$meta
+    types <- sort(unique(meta$type))
+
     colors <- sapply(types, function(t) {
-      col <- nodes_df$color[which(nodes_df$group == t)[1]]
-      if (is.na(col) | is.null(col)) "#cccccc" else col
+      col <- meta$fillcolor[which(meta$type == t)[1]]
+      if (is.na(col) || is.null(col)) "#cccccc" else col
     })
     
     div(
@@ -576,19 +615,34 @@ server <- function(input, output, session) {
             nrow(data$meta), nrow(data$edges), data$n_cross)
   })
   
-  # Clicking a node shows the equation that computes it.
+  # Double-clicking a node fills the docked panel with the equation that
+  # computes it. The selection is held in a reactiveVal so it survives a
+  # re-render of the graph and can be cleared.
   # The description lives in `meta`, not in the table handed to visNetwork: the
   # old version looked for it in `nodes` after a select() had dropped it, and so
   # always showed "(No description available)".
-  observeEvent(input$clicked_node, {
-    data <- graph_reactive(); req(!is.null(data))
-    node_modal(input$clicked_node, data$meta)
+  sel_m <- reactiveVal(NULL)
+  sel_f <- reactiveVal(NULL)
+
+  observeEvent(input$m_selected, sel_m(input$m_selected), ignoreNULL = FALSE)
+  observeEvent(input$f_selected, sel_f(input$f_selected), ignoreNULL = FALSE)
+
+  # A node id means nothing once the view has changed under it.
+  observeEvent(input$select_graph, sel_m(NULL))
+  observeEvent(input$focus_var,    sel_f(NULL))
+
+  output$m_detail <- renderUI({
+    data <- graph_reactive()
+    if (is.null(data)) return(NULL)
+    node_detail(sel_m(), data$meta)
   })
 
-  observeEvent(input$clicked_focus_node, {
-    data <- focus_graph_reactive(); req(!is.null(data))
-    node_modal(input$clicked_focus_node, data$meta)
+  output$f_detail <- renderUI({
+    data <- focus_graph_reactive()
+    if (is.null(data)) return(NULL)
+    node_detail(sel_f(), data$meta)
   })
+
   # Hierarchical and physics exclude each other: ticking one unticks the other,
   # per tab.
   for (p in c("m_", "f_")) local({

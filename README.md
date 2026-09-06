@@ -1104,8 +1104,27 @@ than a framework.
 
 ### 11.2 The Shiny dependency viewer
 
-`app/graph/` renders the model as a directed graph, one node per variable,
-coloured by module. Deployed at <https://minigreen.shinyapps.io/minigreen/>.
+`app/graph/` renders the model as a directed graph, one node per variable.
+Deployed at <https://minigreen.shinyapps.io/minigreen/>. `tool/build-graph.r`
+produces the `graph_obj.RData` it reads; rerun it whenever the model changes.
+
+**Colour is the module, shape is the `Kind`** — two orthogonal questions, two
+channels. A state is a cylinder, a flow a filled box, an auxiliary an ellipse,
+and a lag an *outlined* box: transparent inside, because it occupies a place in
+the graph without being computed anywhere in it.
+
+**Three gestures, three questions.** Hover says *what is this* (name, kind,
+module, equation name). A single click says *what does this touch* — vis.js
+dims everything outside the immediate neighbourhood. A double click says *how is
+this computed*, and fills a panel docked under the graph with the description,
+the R source of the equation as it is written, and its file and line. A double
+click on empty space clears the panel. The panel is deliberately not a modal: a
+modal hides the graph and has to be dismissed, which makes comparing two
+variables a four-click affair.
+
+The sidebar filters by `Kind`, and by whether an edge crosses a module boundary
+— cross-module edges are drawn in red. The two tabs (module focus, variable
+focus) carry independent copies of every control.
 
 ```r
 library(shiny); library(rsconnect)
@@ -1321,27 +1340,11 @@ git push -u origin dev/my-thing
 
 #### Graph viewer (`app/graph/`)
 
-* **The equation popup fires on every click, which makes the graph unpleasant to
-  pan around.** Three gestures are available and each should mean one thing:
-  hover already answers *what is this* (name, kind, module, equation name);
-  click should answer *what does it touch*; double click should answer *how is it
-  computed*. Preferred shape: click selects and highlights the neighbourhood
-  (`highlightNearest = list(enabled = TRUE, degree = 2, hover = TRUE)`, which the
-  app already half-uses), and the equation goes into a **docked panel beside or
-  under the graph rather than a modal** — a modal hides the graph, has to be
-  dismissed, and makes comparing two variables a four-click affair. Double click
-  then means *go to this variable* and jumps to the Variable focus tab centred on
-  it. Cheaper fallback if the panel proves fiddly: keep the modal but move it to
-  `visEvents(doubleClick = ...)`. Note that vis.js fires `click` before
-  `doubleClick`, so whatever click does must be cheap and idempotent.
-* **Lags should read as present but empty.** They currently use `shape = "text"`,
-  which draws neither background nor border, so `fillcolor` is ignored and they
-  appear as bare floating labels. Give them a transparent fill and a grey border
-  instead — `shape = "box"` with the `color.background` / `color.border` columns
-  visNetwork accepts per node. That keeps shape carrying `kind` (a lag is a
-  kind), and says the right thing: a carrier occupies a place in the graph
-  without being computed anywhere in it. Related: the 27 edges whose
-  `crosses_module` is undecidable are undecidable *because* of these carriers.
+* **27 edges have an undecidable `crosses_module`**, because one end is a carrier
+  we cannot trace back to a module (`Pop_lvl`, `ST_Kreal_i_lvl`, `R_LFRP_csg_lvl`
+  and six others). They are undecidable for the same reason the model stops at
+  period 2: the underlying variable is read at *t-1* but no equation writes it.
+  Translating those equations resolves both at once.
 
 ---
 
