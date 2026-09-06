@@ -1126,11 +1126,17 @@ The sidebar filters by `Kind`, and by whether an edge crosses a module boundary
 — cross-module edges are drawn in red. The two tabs (module focus, variable
 focus) carry independent copies of every control.
 
-```r
-library(shiny); library(rsconnect)
-runApp()
-deployApp()
+Run it locally, and publish it, from the project root:
+
+```bash
+Rscript -e 'shiny::runApp("app/graph", port = 7788)'
+Rscript tool/build-graph.r                                    # only if src/ changed
+Rscript -e 'rsconnect::deployApp("app/graph", forceUpdate = TRUE)'
 ```
+
+`app/memo.md` has the rest — what the bundle contains, how to read the server
+logs, and what to do after an account rename. It sits in `app/` rather than in
+`app/graph/` because everything inside `app/graph/` is uploaded.
 
 It reads its edges from the `deps` table:
 
