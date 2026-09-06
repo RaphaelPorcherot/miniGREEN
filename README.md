@@ -1319,6 +1319,30 @@ git push -u origin dev/my-thing
   behaviour. Findings go into `inconsistencies_new.md`.
 * `testthat` for the invariants of §9.2.
 
+#### Graph viewer (`app/graph/`)
+
+* **The equation popup fires on every click, which makes the graph unpleasant to
+  pan around.** Three gestures are available and each should mean one thing:
+  hover already answers *what is this* (name, kind, module, equation name);
+  click should answer *what does it touch*; double click should answer *how is it
+  computed*. Preferred shape: click selects and highlights the neighbourhood
+  (`highlightNearest = list(enabled = TRUE, degree = 2, hover = TRUE)`, which the
+  app already half-uses), and the equation goes into a **docked panel beside or
+  under the graph rather than a modal** — a modal hides the graph, has to be
+  dismissed, and makes comparing two variables a four-click affair. Double click
+  then means *go to this variable* and jumps to the Variable focus tab centred on
+  it. Cheaper fallback if the panel proves fiddly: keep the modal but move it to
+  `visEvents(doubleClick = ...)`. Note that vis.js fires `click` before
+  `doubleClick`, so whatever click does must be cheap and idempotent.
+* **Lags should read as present but empty.** They currently use `shape = "text"`,
+  which draws neither background nor border, so `fillcolor` is ignored and they
+  appear as bare floating labels. Give them a transparent fill and a grey border
+  instead — `shape = "box"` with the `color.background` / `color.border` columns
+  visNetwork accepts per node. That keeps shape carrying `kind` (a lag is a
+  kind), and says the right thing: a carrier occupies a place in the graph
+  without being computed anywhere in it. Related: the 27 edges whose
+  `crosses_module` is undecidable are undecidable *because* of these carriers.
+
 ---
 
 ## Where this is going
